@@ -422,14 +422,14 @@ object MillingCalculator {
                 advice += Advice.danger(
                     L.t(
                         "Tool deflection ${f.deflection(defl.tipDeflection)} is high — reduce stick-out, ae or ap.",
-                        "Takım sehimi ${f.deflection(defl.tipDeflection)} çok yüksek — sarkma boyunu, ae veya ap'yi azaltın.",
+                        "Takım esnemesi ${f.deflection(defl.tipDeflection)} çok yüksek — sarkma boyunu, ae veya ap'yi azaltın.",
                     ),
                 )
             } else if (defl.tipDeflection > limit) {
                 advice += Advice.caution(
                     L.t(
                         "Tool deflection ${f.deflection(defl.tipDeflection)} exceeds the ${f.deflection(limit)} guideline.",
-                        "Takım sehimi ${f.deflection(defl.tipDeflection)}, önerilen ${f.deflection(limit)} sınırını aşıyor.",
+                        "Takım esnemesi ${f.deflection(defl.tipDeflection)}, önerilen ${f.deflection(limit)} sınırını aşıyor.",
                     ),
                 )
             }
@@ -466,7 +466,7 @@ object MillingCalculator {
             advice += Advice.caution(
                 L.t(
                     "Stick-out is ${f.num(stick / d)}×D: deflection and chatter risk rise with L³; use the shortest holder possible.",
-                    "Sarkma boyu ${f.num(stick / d)}×D: sehim ve tırlama riski L³ ile artar; olabilecek en kısa tutucuyu kullanın.",
+                    "Sarkma boyu ${f.num(stick / d)}×D: esneme ve tırlama riski L³ ile artar; olabilecek en kısa tutucuyu kullanın.",
                 ),
             )
         }
@@ -503,7 +503,7 @@ object MillingCalculator {
             )
         }
         if (m.group == IsoGroup.H && !input.climb) {
-            advice += Advice.caution(L.t("Use climb milling in hardened material.", "Sertleştirilmiş malzemede aynı yönlü (climb) frezeleme kullanın."))
+            advice += Advice.caution(L.t("Use climb milling in hardened material.", "Sertleştirilmiş malzemede yukarı frezeleme (aynı yönlü) kullanın."))
         }
         if (input.speedPercent != 100.0 && relLife < 0.95) {
             val life = (relLife * 100).toInt()

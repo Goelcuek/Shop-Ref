@@ -160,7 +160,7 @@ object TappingCalculator {
             advice += Advice.caution(
                 L.t(
                     "Above ≈85% thread adds torque but almost no strength.",
-                    "≈%85 üzeri diş doluluğu torku artırır ama mukavemete neredeyse hiç katkı vermez.",
+                    "≈%85 üzeri diş oluşma oranı torku artırır ama mukavemete neredeyse hiç katkı vermez.",
                 ),
             )
         }
@@ -247,7 +247,7 @@ object TappingCalculator {
             sf < 2.5 -> advice += Advice.caution(
                 L.t(
                     "Tap safety factor only ${f.num(sf)} — use a torque-limiting holder or reduce % thread.",
-                    "Kılavuz emniyet katsayısı yalnızca ${f.num(sf)} — tork sınırlamalı tutucu kullanın ya da diş doluluğunu azaltın.",
+                    "Kılavuz emniyet katsayısı yalnızca ${f.num(sf)} — tork sınırlamalı tutucu kullanın ya da diş oluşma oranını azaltın.",
                 ),
             )
         }
