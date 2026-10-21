@@ -347,5 +347,12 @@ internal object UiDictionary {
         "Refs:" to "Kaynak:",
         "References" to "Kaynaklar",
         "Used for: {0}" to "Kullanım: {0}",
+        // Web app
+        "Tapping" to "Kılavuz çekme",
+        "Theme" to "Tema",
+        "Light" to "Açık",
+        "Dark" to "Koyu",
+        "Same calculation engine as the Android app." to "Android uygulamasıyla aynı hesap motoru.",
+        "Download the Android app" to "Android uygulamasını indir",
     )
 }

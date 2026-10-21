@@ -1,6 +1,8 @@
-# Shop Ref — machining reference & feeds/speeds calculator (Android)
+# Shop Ref — machining reference & feeds/speeds calculator
 
-An offline Android app in the spirit of FSWizard / HSMAdvisor: feeds and speeds for milling, drilling,
+**Website: <https://goelcuek.github.io/Shop-Ref/>** · **Android APK: [latest release](https://github.com/Goelcuek/Shop-Ref/releases/latest)**
+
+An offline Android app and single-page website in the spirit of FSWizard / HSMAdvisor, in **English and Turkish**: feeds and speeds for milling, drilling,
 reaming, tapping, thread milling and turning, with **cutting-force, torque, power and tool-deflection
 predictions built on published cutting-mechanics models**, plus a shop reference library (tap drills,
 drill sizes, clearance holes, counterbores, ISO fits, hardness, surface finish, unit conversion).
@@ -21,6 +23,9 @@ chart with "nearest drill", ISO 273 & inch clearance holes, SHCS counterbores, f
 fits calculator (H/G/F/E/D/JS/K/M/N/P/R/S holes, d–s shafts, IT4–IT13), hardness conversion, surface-finish
 grades, quick rpm/feed calculators, unit converter, full material data, and every formula with its source.
 
+**Languages:** English and Turkish (Türkçe), following the phone/browser language or chosen in Settings. Shop-floor
+terms use the jargon machinists actually say (e.g. *diş başı ilerleme*, *sarkma boyu*, *kılavuz*, *havşa*).
+
 **Machine profiles:** max/min rpm, max feed, spindle power, torque limit (constant-torque region),
 efficiency and rigidity class for the mill and the lathe — recommendations are clamped and checked against them.
 
@@ -30,7 +35,8 @@ HEM practice (≈0.0035" before chip thinning on the same tool). Speed and chip-
 
 ## Cutting-force models and sources
 
-All calculations live in the pure-Kotlin [`core`](core) module and are unit tested against closed-form results.
+All calculations live in the Kotlin Multiplatform [`core`](core) module (JVM for Android, JavaScript for the
+website) and are unit tested against closed-form results.
 
 * **Specific cutting force** — Kienzle law `kc = kc1.1·h^−mc`, `Fc = kc1.1·b·h^(1−mc)` (Kienzle 1952;
   Kienzle & Victor 1957), rake correction `(1 − γ/100)` and wear factor (Sandvik Coromant). Material constants
@@ -52,10 +58,20 @@ All calculations live in the pure-Kotlin [`core`](core) module and are unit test
   ISO 228-1 (G), ISO 273 (clearance holes), ASTM E140 (hardness), ISO 513 (material groups).
 
 The full list with page references is in the app under *Reference → Formulas & references* and in
-[`Citations.kt`](core/src/main/kotlin/com/shopref/core/reference/Citations.kt).
+[`Citations.kt`](core/src/commonMain/kotlin/com/shopref/core/reference/Citations.kt).
 
 > Results are starting points. Material constants vary with heat lot and tool geometry; the force model assumes
 > a rigid, sharp tool without runout or chatter. Always check your tool manufacturer's data.
+
+## Website
+
+The website is one self-contained HTML file (≈600 KB, works offline once loaded) with a desktop layout: inputs
+on the left, a sticky results panel with the force chart on the right, and the key numbers pinned across the
+top while you edit. It runs the same compiled calculation engine as the Android app.
+
+The **Website** workflow (`.github/workflows/pages.yml`) compiles the engine to JavaScript, bundles
+`web/dist/index.html`, runs a headless-Chromium smoke test and deploys it to GitHub Pages from the default
+branch. GitHub Pages must be enabled once with *Settings → Pages → Source: GitHub Actions*.
 
 ## Getting the APK
 
@@ -82,6 +98,8 @@ Requirements: JDK 17+, Android SDK (API 35). Android Studio Ladybug or newer ope
 
 ```bash
 ./gradlew -p core jvmTest       # calculation engine tests (no Android SDK needed)
+python3 tools/check_i18n.py     # every UI string has a Turkish translation
+./gradlew -p core compileProductionExecutableKotlinJs && python3 web/build.py   # website → web/dist/index.html
 ./gradlew :app:assembleDebug    # APK in app/build/outputs/apk/debug/
 ./gradlew :app:connectedDebugAndroidTest   # UI smoke tests on a device/emulator
 ```
@@ -89,6 +107,9 @@ Requirements: JDK 17+, Android SDK (API 35). Android Studio Ladybug or newer ope
 ## Project layout
 
 ```
-core/   Kotlin/JVM library: materials, tooling, calculators, reference data, citations (+ tests)
+core/   Kotlin Multiplatform library (JVM + JS): materials, tooling, calculators, reference data,
+        citations, EN/TR dictionary (+ tests); src/jsMain exposes the API used by the website
 app/    Android app (Jetpack Compose, Material 3), minSdk 26
+web/    Website: src/ (HTML, CSS, app.js), build.py bundles one HTML file, test/ browser smoke test
+tools/  check_i18n.py — fails CI when a UI string lacks a Turkish translation
 ```
