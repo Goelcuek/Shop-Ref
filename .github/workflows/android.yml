@@ -6,6 +6,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish a GitHub release with this tag (e.g. v1.0.0). Leave empty to only build."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -59,12 +64,26 @@ jobs:
         with:
           name: shop-ref-apk
           path: dist/*.apk
-      - name: Publish GitHub release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish GitHub release
+        # On a pushed v* tag, or on a manual run with a release_tag input (the release creates the tag).
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          name: Shop Ref ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
           files: dist/*.apk
           generate_release_notes: true
+          body: |
+            Offline machining reference and feeds & speeds calculator for Android 8.0+.
+
+            **Install:** download `shop-ref-release.apk` on the phone, open it and allow "install unknown apps".
+            `shop-ref-debug.apk` installs side by side (package `com.shopref.app.debug`) for testing.
+
+            Includes milling, drilling/reaming, tapping/thread milling and turning calculators with cutting-force,
+            torque, power and deflection predictions, plus tap drill, drill size, clearance hole, counterbore,
+            ISO 286 fits, hardness and surface-finish references. Results are starting points — verify against
+            your tool manufacturer's data.
 
   ui-smoke-test:
     name: Emulator smoke test

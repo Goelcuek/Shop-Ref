@@ -63,7 +63,11 @@ Every push runs the **Android CI** workflow (`.github/workflows/android.yml`):
 3. `ui-smoke-test` — runs instrumented Compose tests on an Android 11 emulator that open every screen.
 
 Download the artifact from the workflow run, unzip, and install `shop-ref-release.apk` on the phone (allow
-"install unknown apps"). Pushing a tag such as `v1.0.0` also attaches the APKs to a GitHub Release.
+"install unknown apps").
+
+To publish a GitHub Release with the APKs attached, either push a tag such as `v1.0.0`, or run the
+**Android CI** workflow manually (*Actions → Android CI → Run workflow*) and enter the tag in `release_tag`;
+the release step creates the tag on the selected commit.
 
 To sign releases with your own key, set `SHOPREF_KEYSTORE_PATH`, `SHOPREF_KEYSTORE_PASSWORD`,
 `SHOPREF_KEY_ALIAS` and `SHOPREF_KEY_PASSWORD` in the build environment.
