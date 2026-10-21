@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -72,7 +73,30 @@ class SmokeTest {
     @Test
     fun settingsOpen() {
         rule.onNodeWithContentDescription("Settings").performClick()
-        rule.onNodeWithText("Milling machine").assertIsDisplayed()
+        rule.onNodeWithText("Türkçe").assertIsDisplayed()
+        rule.onNodeWithText("Milling machine").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithContentDescription("Back").performClick()
+        rule.onNodeWithText("Milling").assertIsDisplayed()
+    }
+
+    @Test
+    fun turkishLanguageSwitch() {
+        rule.onNodeWithContentDescription("Settings").performClick()
+        rule.onNodeWithText("Türkçe").performClick()
+        rule.waitForIdle()
+        try {
+            rule.onNodeWithContentDescription("Geri").performClick()
+            rule.onNodeWithText("Frezeleme").assertIsDisplayed()
+            for (tab in listOf("DRILL", "TAP", "TURN", "REFERENCE", "MILL")) {
+                rule.onNodeWithTag("tab_$tab").performClick()
+                rule.waitForIdle()
+            }
+            rule.onNodeWithContentDescription("Ayarlar").performClick()
+        } finally {
+            // The preference is persisted, so restore English for the other tests.
+            rule.onNodeWithText("English").performClick()
+            rule.waitForIdle()
+        }
         rule.onNodeWithContentDescription("Back").performClick()
         rule.onNodeWithText("Milling").assertIsDisplayed()
     }
