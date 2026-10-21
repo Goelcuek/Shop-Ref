@@ -2,7 +2,6 @@ package com.shopref.app.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -21,7 +20,10 @@ import com.shopref.app.state.AppSettings
 import com.shopref.app.state.Session
 import com.shopref.app.state.TappingState
 import com.shopref.app.ui.components.AdviceList
-import com.shopref.app.ui.components.BigQuantity
+import com.shopref.app.ui.components.SummaryBar
+import com.shopref.app.ui.components.SummaryItem
+import com.shopref.app.ui.components.summaryOf
+import com.shopref.app.ui.components.summaryWarnColor
 import com.shopref.app.ui.components.Dropdown
 import com.shopref.app.ui.components.FieldRow
 import com.shopref.app.ui.components.IntField
@@ -62,91 +64,100 @@ fun TappingScreen(settings: AppSettings, session: Session, state: TappingState, 
     val result = remember(input) { TappingCalculator.calculate(input) }
     val th = input.thread
 
-    Column(
-        modifier
-            .verticalScroll(rememberScrollState())
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        MaterialSelector(session.material, onSelect = session::selectMaterial)
+    Column(modifier) {
+        SummaryBar(
+            listOf(
+                summaryOf("Spindle", result.rpm, Quantity.SPINDLE_SPEED, units),
+                summaryOf("Feed", result.feed, Quantity.FEED_RATE, units),
+                summaryOf("Torque", result.torqueNm, Quantity.TORQUE, units, summaryWarnColor(1.5 / result.safetyFactor)),
+                summaryOf("Speed", result.vc, Quantity.CUTTING_SPEED, units),
+                summaryOf("Drill", result.drill, Quantity.LENGTH, units),
+                SummaryItem("Thread", formatNumber(result.percentThread, 0), "%"),
+            ),
+        )
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            MaterialSelector(session.material, onSelect = session::selectMaterial)
 
-        SectionCard("Thread") {
-            val standards = ThreadStandard.entries.filter { it != ThreadStandard.NPT }
-            FieldRow {
-                Dropdown(
-                    "Standard", standards, th.standard,
-                    { s -> state.update { it.copy(thread = Threads.byStandard(s).first(), drillDiameter = null) } },
-                    Modifier.weight(1f), optionLabel = { it.label },
+            SectionCard("Thread") {
+                val standards = ThreadStandard.entries.filter { it != ThreadStandard.NPT }
+                FieldRow {
+                    Dropdown(
+                        "Standard", standards, th.standard,
+                        { s -> state.update { it.copy(thread = Threads.byStandard(s).first(), drillDiameter = null) } },
+                        Modifier.weight(1f), optionLabel = { it.label },
+                    )
+                    Dropdown(
+                        "Size", Threads.byStandard(th.standard), th, { t -> state.update { it.copy(thread = t, drillDiameter = null) } },
+                        Modifier.weight(1f), optionLabel = { it.designation }, optionDetail = { threadPitchLabel(it) },
+                    )
+                }
+                QuantityRow("Major diameter", th.majorDiameter, Quantity.LENGTH, units)
+                ResultRow("Pitch", threadPitchLabel(th))
+                QuantityRow("Pitch diameter (basic)", th.pitchDiameter, Quantity.LENGTH, units)
+                ResultRow(
+                    if (th.standard.isInch) "Minor Ø (2B min–max)" else "Minor Ø (6H min–max)",
+                    Quantity.LENGTH.format(th.minorDiameterMin, units) + " – " +
+                        (th.minorDiameterMax?.let { Quantity.LENGTH.formatWithUnit(it, units) } ?: "—"),
                 )
-                Dropdown(
-                    "Size", Threads.byStandard(th.standard), th, { t -> state.update { it.copy(thread = t, drillDiameter = null) } },
-                    Modifier.weight(1f), optionLabel = { it.designation }, optionDetail = { threadPitchLabel(it) },
+            }
+
+            SectionCard("Tap") {
+                Dropdown("Tap type", TapType.entries, input.tapType, { t -> state.update { it.copy(tapType = t, targetPercent = null, drillDiameter = null) } }, Modifier.fillMaxWidth(), optionLabel = { it.label })
+                FieldRow {
+                    Dropdown("Chamfer", TapChamfer.entries, input.chamfer, { c -> state.update { it.copy(chamfer = c) } }, Modifier.weight(1f), optionLabel = { it.label })
+                    IntField(if (input.tapType.isForming) "Lobes" else "Flutes", input.flutes, { n -> state.update { it.copy(flutes = n) } }, Modifier.weight(1f), 1..8)
+                }
+                FieldRow {
+                    Dropdown("Substrate", tapSubstrates, input.tapMaterial, { t -> state.update { it.copy(tapMaterial = t) } }, Modifier.weight(1f), optionLabel = { it.label })
+                    Dropdown("Coating", Coating.entries, input.coating, { c -> state.update { it.copy(coating = c) } }, Modifier.weight(1f), optionLabel = { it.label })
+                }
+                SwitchRow("Blind hole", input.blindHole, { b -> state.update { it.copy(blindHole = b) } })
+                FieldRow {
+                    NumberField("Thread depth", input.threadDepth, { v -> v?.let { d -> state.update { it.copy(threadDepth = d) } } }, Quantity.LENGTH, units, Modifier.weight(1f))
+                    NumberField("Target thread", input.targetPercent, { v -> state.update { it.copy(targetPercent = v, drillDiameter = null) } }, Quantity.PERCENT, units, Modifier.weight(1f), autoValue = TappingCalculator.recommendedPercent(input.material, input.tapType.isForming))
+                }
+                NumberField("Drill used (blank = recommended)", input.drillDiameter, { v -> state.update { it.copy(drillDiameter = v) } }, Quantity.LENGTH, units, Modifier.fillMaxWidth(), autoValue = result.recommendedDrill.mm, decimals = 4)
+                Dropdown("Edge condition", ToolCondition.entries, input.condition, { c -> state.update { it.copy(condition = c) } }, Modifier.fillMaxWidth(), optionLabel = { it.label })
+            }
+
+            SectionCard("Tap drill") {
+                ResultRow(
+                    "Recommended drill",
+                    "${result.recommendedDrill.label} (${Quantity.LENGTH.formatWithUnit(result.recommendedDrill.mm, units)})",
+                    emphasize = true,
                 )
+                QuantityRow("Theoretical Ø for ${formatNumber(result.targetPercent, 0)}%", result.idealDrill, Quantity.LENGTH, units)
+                ResultRow("Thread engagement with drill used", formatNumber(result.percentThread, 0) + "%", emphasize = true)
+                if (!th.standard.isPipe) {
+                    ResultRow("Chart drill (≈75%, cut tap)", "${th.tapDrillLabel} (${Quantity.LENGTH.formatWithUnit(th.tapDrillMm, units)})")
+                } else {
+                    ResultRow("Chart drill", "${th.tapDrillLabel} (${Quantity.LENGTH.formatWithUnit(th.tapDrillMm, units)})")
+                }
+                QuantityRow("Min. drill depth (blind)", result.minDrillDepth, Quantity.LENGTH, units)
             }
-            QuantityRow("Major diameter", th.majorDiameter, Quantity.LENGTH, units)
-            ResultRow("Pitch", threadPitchLabel(th))
-            QuantityRow("Pitch diameter (basic)", th.pitchDiameter, Quantity.LENGTH, units)
-            ResultRow(
-                if (th.standard.isInch) "Minor Ø (2B min–max)" else "Minor Ø (6H min–max)",
-                Quantity.LENGTH.format(th.minorDiameterMin, units) + " – " +
-                    (th.minorDiameterMax?.let { Quantity.LENGTH.formatWithUnit(it, units) } ?: "—"),
-            )
-        }
 
-        SectionCard("Tap") {
-            Dropdown("Tap type", TapType.entries, input.tapType, { t -> state.update { it.copy(tapType = t, targetPercent = null, drillDiameter = null) } }, Modifier.fillMaxWidth(), optionLabel = { it.label })
-            FieldRow {
-                Dropdown("Chamfer", TapChamfer.entries, input.chamfer, { c -> state.update { it.copy(chamfer = c) } }, Modifier.weight(1f), optionLabel = { it.label })
-                IntField(if (input.tapType.isForming) "Lobes" else "Flutes", input.flutes, { n -> state.update { it.copy(flutes = n) } }, Modifier.weight(1f), 1..8)
+            SectionCard("Speeds, torque & safety") {
+                QuantityRow("Cutting speed", result.vc, Quantity.CUTTING_SPEED, units)
+                PercentSlider("Speed override", input.speedPercent, { p -> state.update { it.copy(speedPercent = p) } })
+                ThinDivider()
+                QuantityRow("Tapping torque (est.)", result.torqueNm, Quantity.TORQUE, units, emphasize = true, valueColor = utilisationColor(1.0 / result.safetyFactor * 1.5))
+                QuantityRow("Tap breaking torque (est.)", result.breakingTorqueNm, Quantity.TORQUE, units)
+                ResultRow("Safety factor", formatNumber(result.safetyFactor, 1))
+                QuantityRow("Power", result.powerKw, Quantity.POWER, units)
+                QuantityRow("Chip thickness per tooth", result.chipThickness, Quantity.CHIP_LOAD, units)
+                SmallNote("Torque M = kc·A·dm/2 (energy balance over the thread groove, Kienzle kc) × process factors for land friction and chip packing (Cao & Sutherland 2002). Forming ≈ 2× cutting torque.")
             }
-            FieldRow {
-                Dropdown("Substrate", tapSubstrates, input.tapMaterial, { t -> state.update { it.copy(tapMaterial = t) } }, Modifier.weight(1f), optionLabel = { it.label })
-                Dropdown("Coating", Coating.entries, input.coating, { c -> state.update { it.copy(coating = c) } }, Modifier.weight(1f), optionLabel = { it.label })
-            }
-            SwitchRow("Blind hole", input.blindHole, { b -> state.update { it.copy(blindHole = b) } })
-            FieldRow {
-                NumberField("Thread depth", input.threadDepth, { v -> v?.let { d -> state.update { it.copy(threadDepth = d) } } }, Quantity.LENGTH, units, Modifier.weight(1f))
-                NumberField("Target thread", input.targetPercent, { v -> state.update { it.copy(targetPercent = v, drillDiameter = null) } }, Quantity.PERCENT, units, Modifier.weight(1f), autoValue = TappingCalculator.recommendedPercent(input.material, input.tapType.isForming))
-            }
-            NumberField("Drill used (blank = recommended)", input.drillDiameter, { v -> state.update { it.copy(drillDiameter = v) } }, Quantity.LENGTH, units, Modifier.fillMaxWidth(), autoValue = result.recommendedDrill.mm, decimals = 4)
-            Dropdown("Edge condition", ToolCondition.entries, input.condition, { c -> state.update { it.copy(condition = c) } }, Modifier.fillMaxWidth(), optionLabel = { it.label })
-        }
 
-        SectionCard("Tap drill") {
-            ResultRow(
-                "Recommended drill",
-                "${result.recommendedDrill.label} (${Quantity.LENGTH.formatWithUnit(result.recommendedDrill.mm, units)})",
-                emphasize = true,
-            )
-            QuantityRow("Theoretical Ø for ${formatNumber(result.targetPercent, 0)}%", result.idealDrill, Quantity.LENGTH, units)
-            ResultRow("Thread engagement with drill used", formatNumber(result.percentThread, 0) + "%", emphasize = true)
-            if (!th.standard.isPipe) {
-                ResultRow("Chart drill (≈75%, cut tap)", "${th.tapDrillLabel} (${Quantity.LENGTH.formatWithUnit(th.tapDrillMm, units)})")
-            } else {
-                ResultRow("Chart drill", "${th.tapDrillLabel} (${Quantity.LENGTH.formatWithUnit(th.tapDrillMm, units)})")
-            }
-            QuantityRow("Min. drill depth (blind)", result.minDrillDepth, Quantity.LENGTH, units)
+            AdviceList(result.advice)
+            ThreadMillCard(input.material, th, settings.mill, units)
+            TextButton(onClick = state::reset, modifier = Modifier.fillMaxWidth()) { Text("Reset tapping inputs") }
         }
-
-        SectionCard("Speeds, torque & safety") {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BigQuantity("Spindle", result.rpm, Quantity.SPINDLE_SPEED, units, Modifier.weight(1f))
-                BigQuantity("Feed (= pitch × rpm)", result.feed, Quantity.FEED_RATE, units, Modifier.weight(1f))
-            }
-            QuantityRow("Cutting speed", result.vc, Quantity.CUTTING_SPEED, units)
-            PercentSlider("Speed override", input.speedPercent, { p -> state.update { it.copy(speedPercent = p) } })
-            ThinDivider()
-            QuantityRow("Tapping torque (est.)", result.torqueNm, Quantity.TORQUE, units, emphasize = true, valueColor = utilisationColor(1.0 / result.safetyFactor * 1.5))
-            QuantityRow("Tap breaking torque (est.)", result.breakingTorqueNm, Quantity.TORQUE, units)
-            ResultRow("Safety factor", formatNumber(result.safetyFactor, 1))
-            QuantityRow("Power", result.powerKw, Quantity.POWER, units)
-            QuantityRow("Chip thickness per tooth", result.chipThickness, Quantity.CHIP_LOAD, units)
-            SmallNote("Torque M = kc·A·dm/2 (energy balance over the thread groove, Kienzle kc) × process factors for land friction and chip packing (Cao & Sutherland 2002). Forming ≈ 2× cutting torque.")
-        }
-
-        AdviceList(result.advice)
-        ThreadMillCard(input.material, th, settings.mill, units)
-        TextButton(onClick = state::reset, modifier = Modifier.fillMaxWidth()) { Text("Reset tapping inputs") }
     }
 }
 

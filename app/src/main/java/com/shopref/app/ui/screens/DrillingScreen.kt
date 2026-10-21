@@ -2,7 +2,6 @@ package com.shopref.app.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -21,7 +20,9 @@ import com.shopref.app.state.AppSettings
 import com.shopref.app.state.DrillingState
 import com.shopref.app.state.Session
 import com.shopref.app.ui.components.AdviceList
-import com.shopref.app.ui.components.BigQuantity
+import com.shopref.app.ui.components.SummaryBar
+import com.shopref.app.ui.components.summaryOf
+import com.shopref.app.ui.components.summaryWarnColor
 import com.shopref.app.ui.components.Dropdown
 import com.shopref.app.ui.components.FieldRow
 import com.shopref.app.ui.components.IntField
@@ -49,74 +50,83 @@ fun DrillingScreen(settings: AppSettings, session: Session, state: DrillingState
     val result = remember(input) { DrillingCalculator.calculate(input) }
     val isReamer = input.drillType == DrillType.REAMER
 
-    Column(
-        modifier
-            .verticalScroll(rememberScrollState())
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        MaterialSelector(session.material, onSelect = session::selectMaterial)
+    Column(modifier) {
+        SummaryBar(
+            listOf(
+                summaryOf("Spindle", result.rpm, Quantity.SPINDLE_SPEED, units),
+                summaryOf("Feed", result.feed, Quantity.FEED_RATE, units),
+                summaryOf("Power", result.powerKw, Quantity.POWER, units, summaryWarnColor(result.powerKw / result.availablePowerKw)),
+                summaryOf("Speed", result.vc, Quantity.CUTTING_SPEED, units),
+                summaryOf("Feed/rev", result.fn, Quantity.FEED_PER_REV, units),
+                summaryOf("Thrust", result.thrust, Quantity.FORCE, units),
+            ),
+        )
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            MaterialSelector(session.material, onSelect = session::selectMaterial)
 
-        SectionCard("Drill") {
-            Dropdown("Tool", DrillType.entries, input.drillType, { t -> state.update { it.copy(drillType = t) } }, Modifier.fillMaxWidth(), optionLabel = { it.label })
-            FieldRow {
-                NumberField("Diameter", input.diameter, { v -> v?.let { d -> state.update { it.copy(diameter = d) } } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.1)
-                NumberField("Hole depth", input.depth, { v -> v?.let { d -> state.update { it.copy(depth = d) } } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.0)
-            }
-            val nearest = DrillSizes.nearest(input.diameter)
-            SmallNote("Nearest standard drill: ${nearest.label} (${formatNumber(nearest.mm, 3)} mm / ${formatNumber(nearest.inch, 4)} in) · depth ${formatNumber(input.depth / input.diameter, 1)}×D")
-            FieldRow {
-                if (input.drillType != DrillType.INDEXABLE) {
-                    Dropdown("Coating", Coating.entries, input.coating, { c -> state.update { it.copy(coating = c) } }, Modifier.weight(1f), optionLabel = { it.label })
-                }
-                Dropdown("Edge condition", ToolCondition.entries, input.condition, { c -> state.update { it.copy(condition = c) } }, Modifier.weight(1f), optionLabel = { it.label })
-            }
-            if (isReamer) {
+            SectionCard("Drill") {
+                Dropdown("Tool", DrillType.entries, input.drillType, { t -> state.update { it.copy(drillType = t) } }, Modifier.fillMaxWidth(), optionLabel = { it.label })
                 FieldRow {
-                    NumberField(
-                        "Pre-drilled Ø", input.preHoleDiameter.takeIf { it > 0 }, { v -> state.update { it.copy(preHoleDiameter = v ?: 0.0) } },
-                        Quantity.LENGTH, units, Modifier.weight(1f), autoValue = input.diameter - DrillingCalculator.reamAllowance(input.diameter),
-                    )
-                    IntField("Flutes", input.flutes, { n -> state.update { it.copy(flutes = n) } }, Modifier.weight(1f), 2..16)
+                    NumberField("Diameter", input.diameter, { v -> v?.let { d -> state.update { it.copy(diameter = d) } } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.1)
+                    NumberField("Hole depth", input.depth, { v -> v?.let { d -> state.update { it.copy(depth = d) } } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.0)
                 }
-            } else {
-                NumberField(
-                    "Pre-drilled / core Ø (0 = solid)", input.preHoleDiameter, { v -> state.update { it.copy(preHoleDiameter = v ?: 0.0) } },
-                    Quantity.LENGTH, units, Modifier.fillMaxWidth(), min = 0.0,
-                )
+                val nearest = DrillSizes.nearest(input.diameter)
+                SmallNote("Nearest standard drill: ${nearest.label} (${formatNumber(nearest.mm, 3)} mm / ${formatNumber(nearest.inch, 4)} in) · depth ${formatNumber(input.depth / input.diameter, 1)}×D")
+                FieldRow {
+                    if (input.drillType != DrillType.INDEXABLE) {
+                        Dropdown("Coating", Coating.entries, input.coating, { c -> state.update { it.copy(coating = c) } }, Modifier.weight(1f), optionLabel = { it.label })
+                    }
+                    Dropdown("Edge condition", ToolCondition.entries, input.condition, { c -> state.update { it.copy(condition = c) } }, Modifier.weight(1f), optionLabel = { it.label })
+                }
+                if (isReamer) {
+                    FieldRow {
+                        NumberField(
+                            "Pre-drilled Ø", input.preHoleDiameter.takeIf { it > 0 }, { v -> state.update { it.copy(preHoleDiameter = v ?: 0.0) } },
+                            Quantity.LENGTH, units, Modifier.weight(1f), autoValue = input.diameter - DrillingCalculator.reamAllowance(input.diameter),
+                        )
+                        IntField("Flutes", input.flutes, { n -> state.update { it.copy(flutes = n) } }, Modifier.weight(1f), 2..16)
+                    }
+                } else {
+                    NumberField(
+                        "Pre-drilled / core Ø (0 = solid)", input.preHoleDiameter, { v -> state.update { it.copy(preHoleDiameter = v ?: 0.0) } },
+                        Quantity.LENGTH, units, Modifier.fillMaxWidth(), min = 0.0,
+                    )
+                }
             }
-        }
 
-        SectionCard("Speeds & feeds") {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BigQuantity("Spindle", result.rpm, Quantity.SPINDLE_SPEED, units, Modifier.weight(1f))
-                BigQuantity("Feed", result.feed, Quantity.FEED_RATE, units, Modifier.weight(1f))
+            SectionCard("Speeds & feeds") {
+                QuantityRow("Cutting speed", result.vc, Quantity.CUTTING_SPEED, units, emphasize = true)
+                QuantityRow("Feed per revolution", result.fn, Quantity.FEED_PER_REV, units, emphasize = true)
+                QuantityRow("Chip thickness per lip", result.chipThickness, Quantity.CHIP_LOAD, units)
+                PercentSlider("Speed override", input.speedPercent, { p -> state.update { it.copy(speedPercent = p) } })
+                PercentSlider("Feed override", input.feedPercent, { p -> state.update { it.copy(feedPercent = p) } })
+                Text("Pecking", style = MaterialTheme.typography.labelLarge)
+                Text(result.peckAdvice, style = MaterialTheme.typography.bodyMedium)
             }
-            QuantityRow("Cutting speed", result.vc, Quantity.CUTTING_SPEED, units, emphasize = true)
-            QuantityRow("Feed per revolution", result.fn, Quantity.FEED_PER_REV, units, emphasize = true)
-            QuantityRow("Chip thickness per lip", result.chipThickness, Quantity.CHIP_LOAD, units)
-            PercentSlider("Speed override", input.speedPercent, { p -> state.update { it.copy(speedPercent = p) } })
-            PercentSlider("Feed override", input.feedPercent, { p -> state.update { it.copy(feedPercent = p) } })
-            Text("Pecking", style = MaterialTheme.typography.labelLarge)
-            Text(result.peckAdvice, style = MaterialTheme.typography.bodyMedium)
-        }
 
-        SectionCard("Forces & power") {
-            QuantityRow("Torque", result.torqueNm, Quantity.TORQUE, units, emphasize = true)
-            QuantityRow("Thrust force", result.thrust, Quantity.FORCE, units, emphasize = true)
-            QuantityRow("Cutting power", result.powerKw, Quantity.POWER, units, valueColor = utilisationColor(result.powerKw / result.availablePowerKw))
-            QuantityRow("Available at this rpm", result.availablePowerKw, Quantity.POWER, units)
-            QuantityRow("Specific cutting force kc", result.kc, Quantity.STRESS, units)
-            QuantityRow("Material removal rate", result.mrr, Quantity.MRR, units)
-            ThinDivider()
-            QuantityRow("Point length", result.pointLength, Quantity.LENGTH, units)
-            ResultRow("Cycle time (one hole)", formatNumber(result.timeMin * 60.0, 1) + " s")
-            SmallNote("Mc = kc·fn·(D² − d0²)/8000; thrust = lip thrust × (1 + chisel-edge factor). kc from the Kienzle law at h = fn/2·sin κr.")
-        }
+            SectionCard("Forces & power") {
+                QuantityRow("Torque", result.torqueNm, Quantity.TORQUE, units, emphasize = true)
+                QuantityRow("Thrust force", result.thrust, Quantity.FORCE, units, emphasize = true)
+                QuantityRow("Cutting power", result.powerKw, Quantity.POWER, units, valueColor = utilisationColor(result.powerKw / result.availablePowerKw))
+                QuantityRow("Available at this rpm", result.availablePowerKw, Quantity.POWER, units)
+                QuantityRow("Specific cutting force kc", result.kc, Quantity.STRESS, units)
+                QuantityRow("Material removal rate", result.mrr, Quantity.MRR, units)
+                ThinDivider()
+                QuantityRow("Point length", result.pointLength, Quantity.LENGTH, units)
+                ResultRow("Cycle time (one hole)", formatNumber(result.timeMin * 60.0, 1) + " s")
+                SmallNote("Mc = kc·fn·(D² − d0²)/8000; thrust = lip thrust × (1 + chisel-edge factor). kc from the Kienzle law at h = fn/2·sin κr.")
+            }
 
-        AdviceList(result.advice)
-        SpotDrillCard(settings)
-        TextButton(onClick = state::reset, modifier = Modifier.fillMaxWidth()) { Text("Reset drilling inputs") }
+            AdviceList(result.advice)
+            SpotDrillCard(settings)
+            TextButton(onClick = state::reset, modifier = Modifier.fillMaxWidth()) { Text("Reset drilling inputs") }
+        }
     }
 }
 

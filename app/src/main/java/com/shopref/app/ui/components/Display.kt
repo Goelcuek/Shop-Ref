@@ -16,12 +16,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -51,28 +50,6 @@ fun SectionCard(title: String, modifier: Modifier = Modifier, content: @Composab
 fun FieldRow(content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), content = content)
 }
-
-/** Prominent result tile (rpm, feed). */
-@Composable
-fun BigResult(label: String, value: String, unit: String, modifier: Modifier = Modifier, sub: String? = null) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-    ) {
-        Column(Modifier.padding(12.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            Text(value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            Text(unit, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            if (sub != null) {
-                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, textAlign = TextAlign.Center)
-            }
-        }
-    }
-}
-
-@Composable
-fun BigQuantity(label: String, base: Double, quantity: Quantity, units: UnitSystem, modifier: Modifier = Modifier, sub: String? = null) =
-    BigResult(label, quantity.format(base, units), quantity.label(units), modifier, sub)
 
 @Composable
 fun ResultRow(label: String, value: String, modifier: Modifier = Modifier, emphasize: Boolean = false, valueColor: Color? = null) {
@@ -163,4 +140,61 @@ fun utilisationColor(ratio: Double): Color = when {
     ratio > 1.0 -> MaterialTheme.colorScheme.error
     ratio > 0.85 -> MaterialTheme.colorScheme.secondary
     else -> MaterialTheme.colorScheme.onSurface
+}
+
+/** One value in the pinned results bar. [color] overrides the text colour (e.g. power over the limit). */
+data class SummaryItem(val label: String, val value: String, val unit: String, val color: Color? = null)
+
+fun summaryOf(label: String, base: Double, quantity: Quantity, units: UnitSystem, color: Color? = null, decimals: Int? = null) =
+    SummaryItem(label, quantity.format(base, units, decimals ?: quantity.decimals(units)), quantity.label(units), color)
+
+/** Text colour for a utilisation ratio in the summary bar, or null when within limits. */
+@Composable
+fun summaryWarnColor(ratio: Double): Color? = when {
+    ratio > 1.0 -> MaterialTheme.colorScheme.error
+    ratio > 0.85 -> MaterialTheme.colorScheme.secondary
+    else -> null
+}
+
+/**
+ * Results bar pinned above the scrolling inputs, so the key numbers stay visible while
+ * parameters are edited. Items are laid out three per row.
+ */
+@Composable
+fun SummaryBar(items: List<SummaryItem>, modifier: Modifier = Modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shadowElevation = 4.dp,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items.chunked(3).forEach { row ->
+                Row(Modifier.fillMaxWidth()) {
+                    row.forEach { SummaryCell(it, Modifier.weight(1f)) }
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryCell(item: SummaryItem, modifier: Modifier = Modifier) {
+    val fg = MaterialTheme.colorScheme.onPrimaryContainer
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(item.label, style = MaterialTheme.typography.labelSmall, color = fg.copy(alpha = 0.75f), maxLines = 1)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                item.value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = item.color ?: fg,
+                maxLines = 1,
+            )
+            if (item.unit.isNotEmpty()) {
+                Spacer(Modifier.width(3.dp))
+                Text(item.unit, style = MaterialTheme.typography.labelSmall, color = fg, maxLines = 1, modifier = Modifier.padding(bottom = 2.dp))
+            }
+        }
+    }
 }
