@@ -111,6 +111,7 @@ fun ShopRefApp(store: KeyValueStore) {
                             },
                             icon = { Icon(t.icon, contentDescription = t.label) },
                             label = { Text(t.label) },
+                            modifier = Modifier.testTag("tab_${t.name}"),
                         )
                     }
                 }

@@ -25,8 +25,8 @@ class SmokeTest {
     @Test
     fun allCalculatorTabsRender() {
         rule.onNodeWithText("Milling").assertIsDisplayed()
-        for (tab in listOf("Drill", "Tap", "Turn", "Reference", "Mill")) {
-            rule.onNodeWithContentDescription(tab).performClick()
+        for (tab in listOf("DRILL", "TAP", "TURN", "REFERENCE", "MILL")) {
+            rule.onNodeWithTag("tab_$tab").performClick()
             rule.waitForIdle()
         }
     }
@@ -50,8 +50,8 @@ class SmokeTest {
         rule.onNodeWithTag("materialSearch").performTextInput("Inconel 718")
         rule.onNodeWithText("Nickel alloy, aged").performClick()
         rule.waitForIdle()
-        for (tab in listOf("Drill", "Tap", "Turn", "Mill")) {
-            rule.onNodeWithContentDescription(tab).performClick()
+        for (tab in listOf("DRILL", "TAP", "TURN", "MILL")) {
+            rule.onNodeWithTag("tab_$tab").performClick()
             rule.waitForIdle()
         }
         rule.onNodeWithTag("unitsToggle").performClick()
@@ -59,7 +59,7 @@ class SmokeTest {
 
     @Test
     fun everyReferencePageOpens() {
-        rule.onNodeWithContentDescription("Reference").performClick()
+        rule.onNodeWithTag("tab_REFERENCE").performClick()
         for (page in ReferencePage.entries) {
             rule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText(page.title))
             rule.onNodeWithText(page.title).performClick()
