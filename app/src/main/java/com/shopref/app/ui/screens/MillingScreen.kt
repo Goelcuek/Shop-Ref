@@ -21,6 +21,9 @@ import com.shopref.app.state.AppSettings
 import com.shopref.app.state.MillingState
 import com.shopref.app.state.Session
 import com.shopref.app.ui.components.AdviceList
+import com.shopref.app.ui.components.toolLifeSummary
+import com.shopref.app.ui.components.EstimateRow
+import com.shopref.app.ui.components.ToolLifeCard
 import com.shopref.app.ui.components.SummaryBar
 import com.shopref.app.ui.components.summaryOf
 import com.shopref.app.ui.components.summaryWarnColor
@@ -65,7 +68,7 @@ fun MillingScreen(settings: AppSettings, session: Session, state: MillingState, 
                 summaryOf(L.tx("Power"), result.powerKw, Quantity.POWER, units, summaryWarnColor(result.powerKw / result.availablePowerKw)),
                 summaryOf(L.tx("Speed"), result.vc, Quantity.CUTTING_SPEED, units),
                 summaryOf(L.tx("Chip load"), result.fz, Quantity.CHIP_LOAD, units),
-                summaryOf(L.tx("MRR"), result.mrr, Quantity.MRR, units),
+                toolLifeSummary(L.tx("Tool life"), result.toolLife),
             ),
         )
         Column(
@@ -145,9 +148,6 @@ fun MillingScreen(settings: AppSettings, session: Session, state: MillingState, 
                 )
                 PercentSlider(L.tx("Speed override"), input.speedPercent, { p -> state.update { it.copy(speedPercent = p) } })
                 PercentSlider(L.tx("Chip-load override"), input.feedPercent, { p -> state.update { it.copy(feedPercent = p) } })
-                if (input.speedPercent != 100.0) {
-                    ResultRow(L.tx("Est. tool life vs. recommended"), formatNumber(result.relativeToolLife * 100, 0) + "%")
-                }
             }
 
             SectionCard(L.tx("Forces & power")) {
@@ -173,6 +173,11 @@ fun MillingScreen(settings: AppSettings, session: Session, state: MillingState, 
                 Text(L.tx("Force over one revolution"), style = MaterialTheme.typography.labelLarge)
                 ForceChart(result.forces.samples, units)
                 SmallNote(L.tx("Mechanistic model: Kienzle kc with oblique-cutting force ratios, integrated over teeth, helix and rotation. Rigid tool, no runout."))
+            }
+
+            ToolLifeCard(result.toolLife) {
+                EstimateRow(L.tx("Feed path within the tool life"), result.toolLifePath, Quantity.DISTANCE, units)
+                EstimateRow(L.tx("Metal removed"), result.toolLifeVolume, Quantity.VOLUME, units)
             }
 
             SectionCard(L.tx("Entry moves & finish")) {

@@ -21,6 +21,8 @@ import com.shopref.app.state.AppSettings
 import com.shopref.app.state.Session
 import com.shopref.app.state.TappingState
 import com.shopref.app.ui.components.AdviceList
+import com.shopref.app.ui.components.toolLifeSummary
+import com.shopref.app.ui.components.ToolLifeCard
 import com.shopref.app.ui.components.SummaryBar
 import com.shopref.app.ui.components.SummaryItem
 import com.shopref.app.ui.components.summaryOf
@@ -51,6 +53,7 @@ import com.shopref.core.tooling.ToolCondition
 import com.shopref.core.tooling.ToolMaterial
 import com.shopref.core.units.Quantity
 import com.shopref.core.units.UnitSystem
+import com.shopref.core.units.formatSignificant
 import com.shopref.core.units.formatNumber
 
 private val tapSubstrates = listOf(ToolMaterial.HSS, ToolMaterial.HSS_CO, ToolMaterial.PM_HSS, ToolMaterial.CARBIDE)
@@ -72,9 +75,9 @@ fun TappingScreen(settings: AppSettings, session: Session, state: TappingState, 
                 summaryOf(L.tx("Spindle"), result.rpm, Quantity.SPINDLE_SPEED, units),
                 summaryOf(L.tx("Feed"), result.feed, Quantity.FEED_RATE, units),
                 summaryOf(L.tx("Torque"), result.torqueNm, Quantity.TORQUE, units, summaryWarnColor(1.5 / result.safetyFactor)),
-                summaryOf(L.tx("Speed"), result.vc, Quantity.CUTTING_SPEED, units),
                 summaryOf(L.tx("Drill"), result.drill, Quantity.LENGTH, units),
                 SummaryItem(L.tx("Thread"), formatNumber(result.percentThread, 0), "%"),
+                toolLifeSummary(L.tx("Tool life"), result.toolLife),
             ),
         )
         Column(
@@ -151,6 +154,10 @@ fun TappingScreen(settings: AppSettings, session: Session, state: TappingState, 
                 QuantityRow(L.tx("Power"), result.powerKw, Quantity.POWER, units)
                 QuantityRow(L.tx("Chip thickness per tooth"), result.chipThickness, Quantity.CHIP_LOAD, units)
                 SmallNote(L.tx("Torque M = kc·A·dm/2 (energy balance over the thread groove, Kienzle kc) × process factors for land friction and chip packing (Cao & Sutherland 2002). Forming ≈ 2× cutting torque."))
+            }
+
+            ToolLifeCard(result.toolLife) {
+                result.holesPerTap?.let { ResultRow(L.tx("Holes per tap"), formatSignificant(it)) }
             }
 
             AdviceList(result.advice)

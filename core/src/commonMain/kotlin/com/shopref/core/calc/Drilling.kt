@@ -78,6 +78,12 @@ data class DrillingResult(
     val peckAdvice: String,
     /** Recommended pre-drill size for reaming [mm], if relevant. */
     val reamAllowance: Double?,
+    /** Estimated tool life (extended Taylor, anchored at the recommendation). */
+    val toolLife: ToolLife.Estimate,
+    /** Holes of the given depth within the estimated tool life, or null without a depth. */
+    val holesPerTool: Double?,
+    /** Length drilled within the estimated tool life [m], or null without a depth. */
+    val toolLifeLength: Double?,
     val advice: List<Advice>,
 )
 
@@ -287,13 +293,21 @@ object DrillingCalculator {
                 ),
             )
         }
+        val indexable = type == DrillType.INDEXABLE
+        val life = ToolLife.estimate(
+            ToolLife.referenceMinutes(substrate, insert = indexable, material = m), if (indexable) 0.3 else substrate.taylorN,
+            vRef = vcRec, v = vc, hRef = fnClamped, h = fn,
+        )
+        if (life.outsideModel) advice += Advice.info(toolLifeOutsideText(L))
+        val holes = if (input.depth > 0) life.minutes / time else null
         if (m.notes.isNotBlank()) advice += Advice.info(L.tx(m.notes))
 
         return DrillingResult(
             input = input, vcRecommended = vcRec, vc = vc, rpm = rpm, fn = fn, feed = feed,
             chipThickness = h, kc = kc, torqueNm = torque, thrust = thrust, powerKw = power,
             availablePowerKw = available, mrr = mrr, timeMin = time, pointLength = pointLength,
-            peckAdvice = peck, reamAllowance = if (isReamer) d - d0 else null, advice = advice,
+            peckAdvice = peck, reamAllowance = if (isReamer) d - d0 else null,
+            toolLife = life, holesPerTool = holes, toolLifeLength = holes?.let { it * input.depth / 1000.0 }, advice = advice,
         )
     }
 

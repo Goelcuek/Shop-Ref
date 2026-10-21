@@ -123,12 +123,13 @@ jobs:
           files: dist/*.apk
           generate_release_notes: true
           body: |
-            Offline machining reference and feeds & speeds calculator for Android 8.0+.
+            Offline machining reference and feeds & speeds calculator for Android 8.0+, in English and Turkish.
+            Web version: https://goelcuek.github.io/Shop-Ref/
 
             **Install:** download `shop-ref-release.apk` on the phone, open it and allow "install unknown apps".
             `shop-ref-debug.apk` installs side by side (package `com.shopref.app.debug`) for testing.
 
             Includes milling, drilling/reaming, tapping/thread milling and turning calculators with cutting-force,
-            torque, power and deflection predictions, plus tap drill, drill size, clearance hole, counterbore,
+            torque, power, deflection and tool-life predictions, plus tap drill, drill size, clearance hole, counterbore,
             ISO 286 fits, hardness and surface-finish references. Results are starting points — verify against
             your tool manufacturer's data.

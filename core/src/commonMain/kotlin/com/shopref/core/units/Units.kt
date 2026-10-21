@@ -3,6 +3,9 @@ package com.shopref.core.units
 import com.shopref.core.i18n.Lang
 
 import kotlin.math.abs
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.pow
 import kotlin.math.roundToLong
 
 /** Display unit system. All calculations run internally in metric (mm, m/min, N, W). */
@@ -52,6 +55,10 @@ enum class Quantity(
     PERCENT("%", "%", 1.0, 0, 0),
     /** Base: min */
     TIME("min", "min", 1.0, 2, 2),
+    /** Base: m (path lengths, e.g. metres cut within the tool life) */
+    DISTANCE("m", "ft", 3.280839895, 1, 0),
+    /** Base: cm³ */
+    VOLUME("cm³", "in³", 1.0 / 16.387064, 0, 1),
     /** Base: dimensionless */
     NONE("", "", 1.0, 2, 2),
     ;
@@ -91,6 +98,16 @@ fun formatNumber(value: Double, decimals: Int): String {
     val fracPart = scaled % factor
     val sign = if (value < 0 && scaled != 0L) "-" else ""
     return sign + intPart.toString() + "." + fracPart.toString().padStart(decimals, '0')
+}
+
+/** Rounds to [digits] significant figures, for estimates that should not look more precise than they are. */
+fun formatSignificant(value: Double, digits: Int = 2): String {
+    if (!value.isFinite()) return formatNumber(value, 0)
+    if (value == 0.0) return "0"
+    val magnitude = floor(log10(abs(value))).toInt() + 1
+    if (magnitude < digits) return formatNumber(value, digits - magnitude)
+    val step = 10.0.pow(magnitude - digits)
+    return ((value / step).roundToLong() * step).roundToLong().toString()
 }
 
 object Conversions {

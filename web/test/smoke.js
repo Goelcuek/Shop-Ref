@@ -21,7 +21,8 @@ const check = (cond, msg) => {
     return page;
   };
   const p = await open(1440, 900);
-  const tile = (i) => p.$eval(`#summary .tile:nth-child(${i}) .v`, (e) => e.firstChild.textContent);
+  const tile = (i) => p.$eval(`#kpis .kpi:nth-child(${i}) .v`, (e) => e.firstChild.textContent);
+  const lifeMin = () => p.$eval('#results .life .big', (e) => +e.firstChild.textContent);
   const blur = () => p.click('footer.site');
 
   // Every calculator and reference page renders, in both unit systems.
@@ -45,9 +46,23 @@ const check = (cond, msg) => {
   await p.keyboard.type('6');
   const rpm1 = +(await tile(1));
   check(rpm1 > rpm0 * 1.5, `rpm rises when diameter 12 → 6 mm (${rpm0} → ${rpm1})`);
-  await p.mouse.wheel(0, 2000);
-  const top = await p.$eval('#summary', (e) => e.getBoundingClientRect().top);
-  check(top >= 0 && top <= 60, `summary stays pinned after scrolling (top ${top})`);
+  await p.$eval('.right', (e) => { e.scrollTop = 900; });
+  const top = await p.$eval('#kpis', (e) => e.getBoundingClientRect().top);
+  check(top >= 50 && top <= 60, `key numbers stay pinned while results scroll (top ${top})`);
+  check(await p.evaluate(() => window.scrollY) === 0, 'desktop page itself does not scroll');
+
+  // Tool life: the standard recommendation gives the reference life; a faster spindle shortens it (Taylor).
+  // (12 mm keeps the spindle below the machine limit, which would otherwise slow the cut and lengthen life.)
+  await p.fill('[data-num="mill.diameter"]', '12');
+  check(await lifeMin() === 45, 'tool life at the recommendation is the 45 min carbide basis');
+  await p.$eval('[data-range="mill.speedPercent"]', (e) => { e.value = 120; e.dispatchEvent(new Event('input', { bubbles: true })); });
+  check(await lifeMin() === 22, `speed +20% → ≈22 min (got ${await lifeMin()})`);
+  await p.click('[data-reset="mill.speedPercent"]');
+
+  // Force chart: hover readout lists every series; a table view exists.
+  await p.hover('#results .chart svg', { position: { x: 300, y: 80 } });
+  check(await p.$eval('#results .chart .tip', (e) => e.style.display === 'block' && e.children.length === 5), 'chart hover shows angle + 4 series');
+  check(await p.$$eval('#results .chart details tbody tr', (r) => r.length) >= 20, 'chart has a table view');
 
   // Typing is not disturbed by re-rendering.
   await p.click('[data-num="mill.diameter"]', { clickCount: 3 });
@@ -57,8 +72,12 @@ const check = (cond, msg) => {
   await blur();
   check(await p.inputValue('[data-num="mill.diameter"]') === '6.35', 'value kept after blur');
 
-  // Inch fractions, and clearing a field returns to the recommendation.
+  // Untouched defaults switch to round inch sizes; inch fractions parse; clearing returns to the recommendation.
   await p.click('[data-units="IMPERIAL"]');
+  await p.click('[data-tab="drill"]');
+  check(await p.inputValue('[data-num="drill.diameter"]') === '0.375', 'default drill becomes 3/8" in inch mode');
+  check(/≈ \d+ holes/.test(await p.textContent('#kpis')), 'drilling shows holes per drill');
+  await p.click('[data-tab="mill"]');
   await p.click('[data-num="mill.diameter"]', { clickCount: 3 });
   await p.keyboard.type('1/2');
   await blur();
@@ -100,6 +119,10 @@ const check = (cond, msg) => {
   // Phone width: no horizontal page scroll.
   const m = await open(390, 844);
   check(await m.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no horizontal scroll at 390 px');
+  check(await m.$$eval('#kpis .kpi', (k) => k.filter((e) => e.offsetParent).length) === 6, 'six key numbers on a phone');
+  await m.evaluate(() => window.scrollTo(0, 1500));
+  const mtop = await m.$eval('#kpis', (e) => e.getBoundingClientRect().top);
+  check(mtop > 0 && mtop < 120, `phone key numbers stay pinned (top ${mtop})`);
 
   check(errors.length === 0, 'no JavaScript errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

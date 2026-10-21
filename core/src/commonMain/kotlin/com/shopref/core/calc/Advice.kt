@@ -42,6 +42,11 @@ internal fun feedLimitedText(lang: Lang, rpm: String): String = lang.t(
     "İlerleme makine sınırında; devir $rpm değerine düşürüldü.",
 )
 
+internal fun toolLifeOutsideText(lang: Lang): String = lang.t(
+    "Speed or chip load is far from the recommendation, outside the range where the Taylor tool-life model holds.",
+    "Hız veya diş başı ilerleme önerilenden çok uzak; Taylor takım ömrü modelinin geçerli olduğu aralığın dışında.",
+)
+
 /** Basic speed/feed relations shared by all operations. */
 object CuttingBasics {
     /** Spindle speed [rpm] for cutting speed [vc] (m/min) on diameter [d] (mm). */

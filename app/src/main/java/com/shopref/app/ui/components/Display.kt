@@ -32,9 +32,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.shopref.core.calc.Advice
+import com.shopref.core.calc.ToolLife
 import com.shopref.core.material.IsoGroup
 import com.shopref.core.units.Quantity
 import com.shopref.core.units.UnitSystem
+import com.shopref.core.units.formatNumber
+import com.shopref.core.units.formatSignificant
+import kotlin.math.roundToInt
 
 @Composable
 fun SectionCard(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
@@ -77,6 +81,42 @@ fun QuantityRow(label: String, base: Double, quantity: Quantity, units: UnitSyst
 
 @Composable
 fun ThinDivider() = HorizontalDivider(Modifier.padding(vertical = 4.dp))
+
+/** A rough estimate shown to two significant figures. */
+@Composable
+fun EstimateRow(label: String, base: Double, quantity: Quantity, units: UnitSystem) {
+    val L = LocalLang.current
+    val unit = quantity.label(units, L)
+    ResultRow(label, formatSignificant(quantity.toDisplay(base, units)) + if (unit.isEmpty()) "" else " $unit")
+}
+
+/** Tool-life estimate: minutes of cutting, what they buy ([content]) and the model behind them. */
+@Composable
+fun ToolLifeCard(life: ToolLife.Estimate, content: @Composable ColumnScope.() -> Unit = {}) {
+    val L = LocalLang.current
+    SectionCard(L.tx("Tool life (estimate)")) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(formatSignificant(life.minutes), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                " " + L.tx("min of cutting"), style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp),
+            )
+        }
+        Text(
+            L.tx("{0}% of the life at the standard recommendation ({1} min)", (life.factor * 100).roundToInt(), formatSignificant(life.referenceMinutes)),
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        content()
+        SmallNote(
+            L.tx(
+                "Extended Taylor: T = Tref·(vref/v)^(1/n)·(href/h)^(0.3/n), n = {0}. Expect ±50% with coolant, runout and work-holding.",
+                formatNumber(life.n, 3).trimEnd('0').trimEnd('.'),
+            ),
+        )
+    }
+}
+
+fun toolLifeSummary(label: String, life: ToolLife.Estimate) = SummaryItem(label, formatSignificant(life.minutes), "min")
 
 @Composable
 fun AdviceList(advice: List<Advice>, modifier: Modifier = Modifier) {

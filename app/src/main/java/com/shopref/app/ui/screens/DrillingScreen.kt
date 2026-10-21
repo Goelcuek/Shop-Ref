@@ -21,6 +21,9 @@ import com.shopref.app.state.AppSettings
 import com.shopref.app.state.DrillingState
 import com.shopref.app.state.Session
 import com.shopref.app.ui.components.AdviceList
+import com.shopref.app.ui.components.toolLifeSummary
+import com.shopref.app.ui.components.EstimateRow
+import com.shopref.app.ui.components.ToolLifeCard
 import com.shopref.app.ui.components.SummaryBar
 import com.shopref.app.ui.components.summaryOf
 import com.shopref.app.ui.components.summaryWarnColor
@@ -42,6 +45,7 @@ import com.shopref.core.reference.DrillSizes
 import com.shopref.core.tooling.Coating
 import com.shopref.core.tooling.ToolCondition
 import com.shopref.core.units.Quantity
+import com.shopref.core.units.formatSignificant
 import com.shopref.core.units.formatNumber
 
 @Composable
@@ -60,7 +64,7 @@ fun DrillingScreen(settings: AppSettings, session: Session, state: DrillingState
                 summaryOf(L.tx("Power"), result.powerKw, Quantity.POWER, units, summaryWarnColor(result.powerKw / result.availablePowerKw)),
                 summaryOf(L.tx("Speed"), result.vc, Quantity.CUTTING_SPEED, units),
                 summaryOf(L.tx("Feed/rev"), result.fn, Quantity.FEED_PER_REV, units),
-                summaryOf(L.tx("Thrust"), result.thrust, Quantity.FORCE, units),
+                toolLifeSummary(L.tx("Tool life"), result.toolLife),
             ),
         )
         Column(
@@ -126,6 +130,11 @@ fun DrillingScreen(settings: AppSettings, session: Session, state: DrillingState
                 QuantityRow(L.tx("Point length"), result.pointLength, Quantity.LENGTH, units)
                 ResultRow(L.tx("Cycle time (one hole)"), formatNumber(result.timeMin * 60.0, 1) + " s")
                 SmallNote(L.tx("Mc = kc·fn·(D² − d0²)/8000; thrust = lip thrust × (1 + chisel-edge factor). kc from the Kienzle law at h = fn/2·sin κr."))
+            }
+
+            ToolLifeCard(result.toolLife) {
+                result.holesPerTool?.let { ResultRow(L.tx("Holes per drill"), formatSignificant(it)) }
+                result.toolLifeLength?.let { EstimateRow(L.tx("Length drilled"), it, Quantity.DISTANCE, units) }
             }
 
             AdviceList(result.advice)

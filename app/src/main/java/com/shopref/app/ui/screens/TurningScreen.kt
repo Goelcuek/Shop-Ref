@@ -20,6 +20,8 @@ import com.shopref.app.state.AppSettings
 import com.shopref.app.state.Session
 import com.shopref.app.state.TurningState
 import com.shopref.app.ui.components.AdviceList
+import com.shopref.app.ui.components.toolLifeSummary
+import com.shopref.app.ui.components.ToolLifeCard
 import com.shopref.app.ui.components.SummaryBar
 import com.shopref.app.ui.components.summaryOf
 import com.shopref.app.ui.components.summaryWarnColor
@@ -39,6 +41,7 @@ import com.shopref.core.calc.TurnOperation
 import com.shopref.core.calc.TurningCalculator
 import com.shopref.core.tooling.ToolCondition
 import com.shopref.core.units.Quantity
+import com.shopref.core.units.formatSignificant
 import com.shopref.core.units.formatNumber
 
 private val noseRadii = listOf(0.2, 0.4, 0.8, 1.2, 1.6, 2.4)
@@ -58,7 +61,7 @@ fun TurningScreen(settings: AppSettings, session: Session, state: TurningState, 
                 summaryOf(L.tx("Power"), result.powerKw, Quantity.POWER, units, summaryWarnColor(result.powerKw / result.availablePowerKw)),
                 summaryOf(L.tx("Speed"), result.vc, Quantity.CUTTING_SPEED, units),
                 summaryOf(L.tx("Feed/rev"), result.feed, Quantity.FEED_PER_REV, units),
-                summaryOf(L.tx("Ra"), result.raMicron, Quantity.ROUGHNESS, units),
+                toolLifeSummary(L.tx("Tool life"), result.toolLife),
             ),
         )
         Column(
@@ -120,6 +123,12 @@ fun TurningScreen(settings: AppSettings, session: Session, state: TurningState, 
                 QuantityRow(L.tx("Theoretical Ra"), result.raMicron, Quantity.ROUGHNESS, units, emphasize = true)
                 QuantityRow(L.tx("Theoretical Rt (peak-to-valley)"), result.rtMicron, Quantity.ROUGHNESS, units)
                 SmallNote(L.tx("Fc = kc1.1·b·h^(1−mc), h = f·sin κr, b = ap/sin κr. Ra ≈ f²/(32·rε); real finish is usually 1.5–3× worse."))
+            }
+
+            ToolLifeCard(result.toolLife) {
+                result.passesPerEdge?.let {
+                    ResultRow(L.tx("Passes per edge ({0} each)", Quantity.LENGTH.formatWithUnit(input.lengthOfCut, units, lang = L)), formatSignificant(it))
+                }
             }
 
             RaFeedCard(settings)

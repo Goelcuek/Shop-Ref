@@ -166,7 +166,7 @@ function toggle(calc, key, label, detail) {
 function slider(calc, key, label) {
   const v = IN[calc][key];
   return `<div class="slider field full"><span class="lbl">${esc(t(label))}</span>
-    <span class="pct" data-reset="${calc}.${key}" title="100%">${Math.round(v)}%</span>
+    <span class="pct ${v !== 100 ? 'off' : ''}" data-reset="${calc}.${key}" title="100%">${Math.round(v)}%</span>
     <input type="range" min="50" max="200" step="5" value="${v}" data-range="${calc}.${key}"></div>`;
 }
 
@@ -202,39 +202,162 @@ function warnClass(ratio) {
   if (ratio > 0.85) return 'warn';
   return '';
 }
+const statusOf = (ratio) => ({ danger: 'critical', warn: 'warning' }[warnClass(ratio)] || '');
+/** Same thresholds as the engine's tap advice: below 1.5 danger, below 2.5 caution. */
+const tapStatus = (sf) => (sf < 1.5 ? 'critical' : sf < 2.5 ? 'warning' : '');
 
-function summary(items) {
-  return `<section class="summary" id="summary">${items.map((it) => `<div class="tile ${it.cls || ''}">
-    <div class="k">${esc(it.k)}</div><div class="v">${esc(it.v)}<span class="u">${esc(it.u || '')}</span></div></div>`).join('')}</section>`;
+/** Rounds to [n] significant figures for estimates that should not look more precise than they are. */
+function sig(v, n = 2) {
+  if (v == null || !Number.isFinite(v)) return fmtN(v, 0);
+  if (v === 0) return '0';
+  const d = Math.floor(Math.log10(Math.abs(v))) + 1;
+  if (d >= n) {
+    const step = 10 ** (d - n);
+    return String(Math.round(v / step) * step);
+  }
+  return v.toFixed(n - d);
 }
-const tile = (k, v, q, cls) => ({ k: t(k), v: fmt(v, q), u: uLabel(q), cls });
+const sigU = (v, q) => sig(toDisp(v, q)) + ' ' + uLabel(q);
+
+// ------------------------------------------------------------------------------ key numbers
+
+function kpiHtml(items) {
+  return items.filter(Boolean).map((it) => `<div class="kpi ${it.status || ''} ${it.cls || ''}"><div class="k">${esc(it.k)}</div>
+    <div class="v">${esc(it.v)}<span class="u">${esc(it.u || '')}</span></div>
+    <div class="c">${it.status ? '<span class="st" aria-hidden="true">!</span>' : ''}${esc(it.c || '')}</div></div>`).join('');
+}
+const kpi = (k, v, q, extra = {}) => Object.assign({ k: t(k), v: fmt(v, q), u: uLabel(q) }, extra);
+/** Tiles marked secondary are left out of the compact strip on phones (six fit; eight would be unreadable). */
+const secondary = (item) => Object.assign(item, { cls: 'xs-hide' });
+const powerKpi = (power, available) => kpi('Power', power, 'POWER', {
+  status: statusOf(power / available), c: t('{0}% of {1} available', Math.round((100 * power) / available), fmtU(available, 'POWER')),
+});
+const lifeKpi = (life, caption) => ({ k: t('Tool life'), v: sig(life.minutes), u: t('min'), c: caption, status: life.outsideModel ? 'warning' : '' });
+
+/** Tool-life card shared by the calculators: minutes, what they buy, and the model behind them. */
+function lifeCard(life, extraRows) {
+  return card(esc(t('Tool life (estimate)')), `<div class="big">${esc(sig(life.minutes))}<small>${esc(t('min of cutting'))}</small></div>
+    <div class="sub">${esc(t('{0}% of the life at the standard recommendation ({1} min)', Math.round(life.factor * 100), sig(life.referenceMinutes)))}</div>`
+    + rows(extraRows)
+    + note(esc(t('Extended Taylor: T = Tref·(vref/v)^(1/n)·(href/h)^(0.3/n), n = {0}. Expect ±50% with coolant, runout and work-holding.', String(+life.n.toFixed(3))))), 'life');
+}
 
 // ------------------------------------------------------------------------------ force chart
 
+let chartData = null;
+
+function niceStep(range, ticks) {
+  const raw = range / ticks;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const norm = raw / mag;
+  return (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+}
+
+/** Force over one revolution: one axis (force), four series, hover/keyboard readout and a table twin. */
 function forceChart(samples) {
-  const W = 360;
-  const H = 170;
-  const keys = [['fz', '--chart-fz', true], ['fx', '--chart-fx'], ['fy', '--chart-fy'], ['fxy', '--chart-fxy']];
-  let max = 1e-6;
+  // Drawn at the card's real pixel width so text and line weights stay at their design size.
+  const host = document.getElementById('results');
+  const cs = host ? getComputedStyle(host) : null;
+  const inner = host && host.clientWidth ? host.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) : 760;
+  const W = Math.round(Math.min(1600, Math.max(280, inner - 38)));
+  const H = W < 560 ? 210 : 260;
+  const PL = 54;
+  const PR = 10;
+  const PT = 10;
+  const PB = 28;
+  const series = [['fxy', '--s1', '|Fxy|'], ['fx', '--s2', t('Fx feed')], ['fy', '--s3', t('Fy normal')], ['fz', '--s4', t('Fz axial')]];
+  const val = (s, k) => toDisp(s[k], 'FORCE');
+  let max = 0;
   let min = 0;
-  for (const s of samples) {
-    max = Math.max(max, Math.abs(s.fx), Math.abs(s.fy), s.fxy, Math.abs(s.fz));
-    min = Math.min(min, s.fx, s.fy, s.fz);
+  for (const s of samples) for (const [k] of series) { max = Math.max(max, val(s, k)); min = Math.min(min, val(s, k)); }
+  const step = niceStep(Math.max(max - min, 1e-6), 4);
+  const top = Math.max(step, Math.ceil(max / step) * step);
+  const bottom = Math.floor(min / step) * step;
+  const x = (a) => PL + (a / 360) * (W - PL - PR);
+  const y = (v) => PT + ((top - v) / (top - bottom)) * (H - PT - PB);
+  const dec = step < 1 ? 1 : 0;
+  let grid = '';
+  for (let v = bottom; v <= top + step / 2; v += step) {
+    grid += `<line x1="${PL}" x2="${W - PR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(${Math.abs(v) < step / 2 ? '--axis' : '--grid'})" stroke-width="1"/>`
+      + `<text x="${PL - 8}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${fmtN(v, dec)}</text>`;
   }
-  const top = max * 1.1;
-  const bottom = min < 0 ? -max * 1.1 : 0;
-  const y = (v) => ((top - v) / (top - bottom)) * H;
-  const x = (i) => (i / (samples.length - 1)) * W;
-  const grid = [0, 1, 2, 3, 4].map((q) => `<line x1="${(W * q) / 4}" y1="0" x2="${(W * q) / 4}" y2="${H}" stroke="var(--border)" stroke-width="1"/>`).join('');
-  const lines = keys.map(([k, c, dash]) => `<polyline fill="none" stroke="var(${c})" stroke-width="2" ${dash ? 'stroke-dasharray="6 5"' : ''}
-    vector-effect="non-scaling-stroke" points="${samples.map((s, i) => `${x(i).toFixed(1)},${y(s[k]).toFixed(1)}`).join(' ')}"/>`).join('');
-  return `<div class="chart"><div class="legend" style="justify-content:space-between;margin:0 0 4px">
-      <span>+${esc(fmtU(top, 'FORCE'))}</span><span>${esc(t('one revolution →'))}</span></div>
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${grid}
-      <line x1="0" y1="${y(0)}" x2="${W}" y2="${y(0)}" stroke="var(--muted)" stroke-width="1" vector-effect="non-scaling-stroke"/>${lines}</svg>
-    ${bottom < 0 ? `<div class="legend">${esc(fmtU(bottom, 'FORCE'))}</div>` : ''}
-    <div class="legend"><span><i style="background:var(--chart-fxy)"></i>|Fxy|</span><span><i style="background:var(--chart-fx)"></i>${esc(t('Fx feed'))}</span>
-      <span><i style="background:var(--chart-fy)"></i>${esc(t('Fy normal'))}</span><span><i style="background:var(--chart-fz)"></i>${esc(t('Fz axial'))}</span></div></div>`;
+  for (const a of [0, 90, 180, 270, 360]) grid += `<text x="${x(a).toFixed(1)}" y="${H - 8}" text-anchor="${a === 0 ? 'start' : a === 360 ? 'end' : 'middle'}">${a}°</text>`;
+  const pts = samples.concat([Object.assign({}, samples[0], { a: 360 })]);
+  const lines = series.map(([k, c]) => `<polyline fill="none" stroke="var(${c})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+    points="${pts.map((s) => `${x(s.a).toFixed(1)},${y(val(s, k)).toFixed(1)}`).join(' ')}"/>`).join('');
+  chartData = { samples, series, x, y, val, W };
+  const u = uLabel('FORCE');
+  const every = Math.max(1, Math.round(samples.length / 24));
+  const tableRows = samples.filter((_, i) => i % every === 0).map((s) => `<tr><td class="n">${fmtN(s.a, 0)}°</td>${series.map(([k]) => `<td class="n">${fmtN(val(s, k), dec)}</td>`).join('')}</tr>`).join('');
+  return `<div class="chart">
+    <div class="legend">${series.map(([, c, name]) => `<span><i style="background:var(${c})"></i>${esc(name)}</span>`).join('')}<span style="margin-left:auto;color:var(--muted)">${esc(u)}</span></div>
+    <svg viewBox="0 0 ${W} ${H}" tabindex="0" role="img" aria-label="${esc(t('Force over one revolution'))}">${grid}${lines}
+      <line class="xh" y1="${PT}" y2="${H - PB}" stroke="var(--ink-2)" stroke-width="1" visibility="hidden"/>
+      <g class="dots" visibility="hidden">${series.map(([, c]) => `<circle r="4.5" fill="var(${c})" stroke="var(--surface)" stroke-width="2"/>`).join('')}</g>
+      <rect class="hit" x="${PL}" y="${PT}" width="${W - PL - PR}" height="${H - PT - PB}" fill="transparent"/></svg>
+    <div class="tip"></div>
+    <details class="table"><summary>${esc(t('Show as table'))}</summary>${table([t('Angle'), ...series.map(([, , name]) => `${esc(name)} (${esc(u)})`)], tableRows, { num: true })}</details></div>`;
+}
+
+/** Hover / keyboard readout: the crosshair snaps to the nearest sample and lists every series. */
+function bindChart() {
+  const box = document.querySelector('#results .chart');
+  if (!box || !chartData) return;
+  const svg = box.querySelector('svg');
+  const tip = box.querySelector('.tip');
+  const xh = svg.querySelector('.xh');
+  const dots = svg.querySelector('.dots');
+  const { samples, series, x, y, val } = chartData;
+  let idx = -1;
+  const show = (i) => {
+    idx = (i + samples.length) % samples.length;
+    const s = samples[idx];
+    const px = x(s.a);
+    xh.setAttribute('x1', px);
+    xh.setAttribute('x2', px);
+    xh.setAttribute('visibility', 'visible');
+    dots.setAttribute('visibility', 'visible');
+    [...dots.children].forEach((c, j) => { c.setAttribute('cx', px); c.setAttribute('cy', y(val(s, series[j][0]))); });
+    tip.textContent = '';
+    const head = document.createElement('div');
+    head.className = 'h';
+    head.textContent = `${fmtN(s.a, 0)}°`;
+    tip.appendChild(head);
+    for (const [k, c, name] of series) {
+      const row = document.createElement('div');
+      const key = document.createElement('i');
+      key.style.background = `var(${c})`;
+      const b = document.createElement('b');
+      b.textContent = fmtU(s[k], 'FORCE');
+      const span = document.createElement('span');
+      span.textContent = name;
+      row.append(key, b, span);
+      tip.appendChild(row);
+    }
+    tip.style.display = 'block';
+    const scale = svg.getBoundingClientRect().width / chartData.W;
+    const left = px * scale;
+    tip.style.left = (left > box.clientWidth / 2 ? left - tip.offsetWidth - 12 : left + 12) + 'px';
+  };
+  const hide = () => {
+    xh.setAttribute('visibility', 'hidden');
+    dots.setAttribute('visibility', 'hidden');
+    tip.style.display = 'none';
+  };
+  svg.addEventListener('pointermove', (e) => {
+    const r = svg.getBoundingClientRect();
+    const a = ((e.clientX - r.left) / r.width * chartData.W - x(0)) / (x(360) - x(0)) * 360;
+    if (a < -5 || a > 365) { hide(); return; }
+    show(Math.round((Math.min(359.999, Math.max(0, a)) / 360) * samples.length) % samples.length);
+  });
+  svg.addEventListener('pointerleave', hide);
+  svg.addEventListener('blur', hide);
+  svg.addEventListener('focus', () => show(idx < 0 ? 0 : idx));
+  svg.addEventListener('keydown', (e) => {
+    const stepN = Math.max(1, Math.round(samples.length / 72));
+    if (e.key === 'ArrowRight') { show(idx + stepN); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { show(idx - stepN); e.preventDefault(); }
+  });
 }
 
 // ------------------------------------------------------------------------------ calculators
@@ -276,11 +399,20 @@ const CALCS = {
       ) + note(esc(t('Clear a field to return to the recommended value. Machine: {0}', t(S.mill.name))));
       return materialButton() + card(esc(t('Tool')), tool) + card(esc(t('Cut')), cut);
     },
-    summary: (r) => summary([
-      tile('Spindle', r.rpm, 'SPINDLE_SPEED'), tile('Feed', r.feed, 'FEED_RATE'),
-      tile('Power', r.powerKw, 'POWER', warnClass(r.powerKw / r.availablePowerKw)),
-      tile('Speed', r.vc, 'CUTTING_SPEED'), tile('Chip load', r.fz, 'CHIP_LOAD'), tile('MRR', r.mrr, 'MRR'),
-    ]),
+    kpis: (r) => [
+      kpi('Spindle', r.rpm, 'SPINDLE_SPEED'),
+      kpi('Feed', r.feed, 'FEED_RATE', { c: t('{0} flutes', IN.mill.flutes) }),
+      kpi('Cutting speed', r.vc, 'CUTTING_SPEED'),
+      kpi('Chip load', r.fz, 'CHIP_LOAD', { c: t('hmax {0}', fmtU(r.hmax, 'CHIP_LOAD')) }),
+      secondary(kpi('Material removal', r.mrr, 'MRR')),
+      powerKpi(r.powerKw, r.availablePowerKw),
+      lifeKpi(r.toolLife, t('≈ {0} of cut', sigU(r.toolLifePath, 'DISTANCE'))),
+      secondary(IN.mill.toolType === 'INDEXABLE' ? kpi('Peak lateral force', r.peakFxy, 'FORCE')
+        : kpi('Tool deflection', r.deflection * 1000, 'DEFLECTION', {
+          status: r.deflection > 4 * r.deflectionLimit ? 'critical' : r.deflection > r.deflectionLimit ? 'warning' : '',
+          c: t('guideline {0}', fmtU(r.deflectionLimit * 1000, 'DEFLECTION')),
+        })),
+    ],
     results(r) {
       const i = IN.mill;
       return card(esc(t('Speeds & feeds')), rows([
@@ -292,7 +424,6 @@ const CALCS = {
         [t('Engagement angle'), fmtN(r.engagementAngleDeg, 0) + '°'],
         [t('Depths used: ap'), fmtU(r.ap, 'LENGTH')],
         ['ae', fmtU(r.ae, 'LENGTH')],
-        i.speedPercent !== 100 ? [t('Est. tool life vs. recommended'), fmtN(r.relativeToolLife * 100, 0) + '%'] : null,
       ])) + card(esc(t('Forces & power')), rows([
         [t('Material removal rate'), fmtU(r.mrr, 'MRR'), 'em'],
         [t('Cutting power'), fmtU(r.powerKw, 'POWER'), 'em ' + warnClass(r.powerKw / r.availablePowerKw)],
@@ -307,12 +438,18 @@ const CALCS = {
         [t('Mean axial force Fz (pull-up)'), fmtU(r.meanFz, 'FORCE')],
         [t('Mean specific cutting force kc'), fmtU(r.meanKc, 'STRESS')],
         [t('Teeth in cut (avg)'), fmtN(r.teethInCut, 2)],
-        ...(i.toolType === 'INDEXABLE' ? [] : ['-',
-          [t('Tool deflection'), fmtU(r.deflection * 1000, 'DEFLECTION'), 'em'],
-          [t('Bending stress'), fmtU(r.bendingStress, 'STRESS'), warnClass(r.bendingStress / r.allowableStress)],
-          [t('Torsional stress'), fmtU(r.torsionStress, 'STRESS')]]),
-      ])) + card(esc(t('Force over one revolution')), forceChart(r.samples)
-        + note(esc(t('Mechanistic model: Kienzle kc with oblique-cutting force ratios, integrated over teeth, helix and rotation. Rigid tool, no runout.'))))
+      ])) + lifeCard(r.toolLife, [
+        [t('Feed path within the tool life'), sigU(r.toolLifePath, 'DISTANCE')],
+        [t('Metal removed'), sigU(r.toolLifeVolume, 'VOLUME')],
+      ]) + (i.toolType === 'INDEXABLE' ? '' : card(esc(t('Deflection & stress')), rows([
+        [t('Tool deflection'), fmtU(r.deflection * 1000, 'DEFLECTION'), 'em ' + (r.deflection > 4 * r.deflectionLimit ? 'danger' : r.deflection > r.deflectionLimit ? 'warn' : '')],
+        [t('Guideline for this strategy'), fmtU(r.deflectionLimit * 1000, 'DEFLECTION')],
+        [t('Bending stress'), fmtU(r.bendingStress, 'STRESS'), warnClass(r.bendingStress / r.allowableStress)],
+        [t('Allowable bending stress'), fmtU(r.allowableStress, 'STRESS')],
+        [t('Torsional stress'), fmtU(r.torsionStress, 'STRESS')],
+      ])))
+        + card(esc(t('Force over one revolution')), forceChart(r.samples)
+          + note(esc(t('Mechanistic model: Kienzle kc with oblique-cutting force ratios, integrated over teeth, helix and rotation. Rigid tool, no runout.'))), 'wide')
         + card(esc(t('Entry moves & finish')), rows([
           [t('Max ramp angle'), fmtN(r.rampAngleDeg, 1) + '°'],
           [t('Ramp / helix feed'), fmtU(r.rampFeed, 'FEED_RATE')],
@@ -349,11 +486,16 @@ const CALCS = {
         + note(esc(t('Spot ≈0.1–0.2 mm larger than the drill so the drill lips, not the chisel edge, start the hole. Use spot angle ≥ drill point angle.')));
       return materialButton() + card(esc(t('Drill')), drill) + card(esc(t('Spot / countersink depth')), spot);
     },
-    summary: (r) => summary([
-      tile('Spindle', r.rpm, 'SPINDLE_SPEED'), tile('Feed', r.feed, 'FEED_RATE'),
-      tile('Power', r.powerKw, 'POWER', warnClass(r.powerKw / r.availablePowerKw)),
-      tile('Speed', r.vc, 'CUTTING_SPEED'), tile('Feed/rev', r.fn, 'FEED_PER_REV'), tile('Thrust', r.thrust, 'FORCE'),
-    ]),
+    kpis: (r) => [
+      kpi('Spindle', r.rpm, 'SPINDLE_SPEED'),
+      kpi('Feed', r.feed, 'FEED_RATE'),
+      kpi('Cutting speed', r.vc, 'CUTTING_SPEED'),
+      kpi('Feed/rev', r.fn, 'FEED_PER_REV'),
+      secondary(kpi('Thrust', r.thrust, 'FORCE')),
+      secondary(kpi('Torque', r.torqueNm, 'TORQUE')),
+      powerKpi(r.powerKw, r.availablePowerKw),
+      lifeKpi(r.toolLife, r.holesPerTool != null ? t('≈ {0} holes', sig(r.holesPerTool)) : ''),
+    ],
     results(r) {
       return card(esc(t('Speeds & feeds')), rows([
         [t('Cutting speed'), fmtU(r.vc, 'CUTTING_SPEED'), 'em'],
@@ -371,6 +513,10 @@ const CALCS = {
           [t('Point length'), fmtU(r.pointLength, 'LENGTH')],
           [t('Cycle time (one hole)'), fmtN(r.timeMin * 60, 1) + ' s'],
         ]) + note(esc(t('Mc = kc·fn·(D² − d0²)/8000; thrust = lip thrust × (1 + chisel-edge factor). kc from the Kienzle law at h = fn/2·sin κr.'))))
+        + lifeCard(r.toolLife, r.holesPerTool == null ? [] : [
+          [t('Holes per drill'), sig(r.holesPerTool)],
+          [t('Length drilled'), sigU(r.toolLifeLength, 'DISTANCE')],
+        ])
         + adviceHtml(r.advice.filter((a) => a.level === 'INFO'));
     },
     after(r) {
@@ -414,12 +560,16 @@ const CALCS = {
       ) + `<div id="threadMillOut" style="margin-top:10px"></div>`;
       return materialButton() + card(esc(t('Thread')), thread) + card(esc(t('Tap')), tap) + card(esc(t('Thread milling (internal)')), mill);
     },
-    summary: (r) => summary([
-      tile('Spindle', r.rpm, 'SPINDLE_SPEED'), tile('Feed', r.feed, 'FEED_RATE'),
-      tile('Torque', r.torqueNm, 'TORQUE', warnClass(1.5 / r.safetyFactor)),
-      tile('Speed', r.vc, 'CUTTING_SPEED'), tile('Drill', r.drill, 'LENGTH'),
-      { k: t('Thread'), v: fmtN(r.percentThread, 0), u: '%' },
-    ]),
+    kpis: (r) => [
+      kpi('Spindle', r.rpm, 'SPINDLE_SPEED'),
+      kpi('Feed', r.feed, 'FEED_RATE'),
+      secondary(kpi('Cutting speed', r.vc, 'CUTTING_SPEED')),
+      kpi('Tap drill', r.drill, 'LENGTH', { c: r.recommendedDrill.label }),
+      { k: t('Thread'), v: fmtN(r.percentThread, 0), u: '%', c: t('target {0}%', fmtN(r.targetPercent, 0)) },
+      kpi('Torque', r.torqueNm, 'TORQUE', { status: tapStatus(r.safetyFactor), c: t('breaks at ≈{0}', fmtU(r.breakingTorqueNm, 'TORQUE')) }),
+      secondary({ k: t('Safety factor'), v: fmtN(r.safetyFactor, 1), u: '', status: tapStatus(r.safetyFactor), c: t('torque vs. tap strength') }),
+      lifeKpi(r.toolLife, r.holesPerTap != null ? t('≈ {0} holes', sig(r.holesPerTap)) : ''),
+    ],
     results(r) {
       const th = r.thread;
       return card(esc(t('Tap drill')), rows([
@@ -431,12 +581,13 @@ const CALCS = {
       ])) + card(esc(t('Speeds, torque & safety')), rows([
         [t('Cutting speed'), fmtU(r.vc, 'CUTTING_SPEED')],
         '-',
-        [t('Tapping torque (est.)'), fmtU(r.torqueNm, 'TORQUE'), 'em ' + warnClass(1.5 / r.safetyFactor)],
+        [t('Tapping torque (est.)'), fmtU(r.torqueNm, 'TORQUE'), 'em ' + ({ critical: 'danger', warning: 'warn' }[tapStatus(r.safetyFactor)] || '')],
         [t('Tap breaking torque (est.)'), fmtU(r.breakingTorqueNm, 'TORQUE')],
         [t('Safety factor'), fmtN(r.safetyFactor, 1)],
         [t('Power'), fmtU(r.powerKw, 'POWER')],
         [t('Chip thickness per tooth'), fmtU(r.chipThickness, 'CHIP_LOAD')],
       ]) + note(esc(t('Torque M = kc·A·dm/2 (energy balance over the thread groove, Kienzle kc) × process factors for land friction and chip packing (Cao & Sutherland 2002). Forming ≈ 2× cutting torque.'))))
+        + lifeCard(r.toolLife, r.holesPerTap == null ? [] : [[t('Holes per tap'), sig(r.holesPerTap)]])
         + adviceHtml(r.advice.filter((a) => a.level === 'INFO'));
     },
     after(r) {
@@ -495,11 +646,16 @@ const CALCS = {
       ) + `<div class="rows" style="margin-top:10px"><div class="l">${esc(t('Max feed'))}</div><div class="r em" id="raOut"></div></div>`;
       return materialButton() + card(esc(t('Insert & operation')), insert) + card(esc(t('Cut')), cut) + card(esc(t('Feed for a target finish')), ra);
     },
-    summary: (r) => summary([
-      tile('Spindle', r.rpm, 'SPINDLE_SPEED'), tile('Feed', r.feedRate, 'FEED_RATE'),
-      tile('Power', r.powerKw, 'POWER', warnClass(r.powerKw / r.availablePowerKw)),
-      tile('Speed', r.vc, 'CUTTING_SPEED'), tile('Feed/rev', r.feed, 'FEED_PER_REV'), tile('Ra', r.ra, 'ROUGHNESS'),
-    ]),
+    kpis: (r) => [
+      kpi('Spindle', r.rpm, 'SPINDLE_SPEED'),
+      kpi('Feed', r.feedRate, 'FEED_RATE'),
+      kpi('Cutting speed', r.vc, 'CUTTING_SPEED'),
+      kpi('Feed/rev', r.feed, 'FEED_PER_REV', { c: t('ap {0}', fmtU(r.ap, 'LENGTH')) }),
+      secondary(kpi('Cutting force Fc', r.fc, 'FORCE')),
+      powerKpi(r.powerKw, r.availablePowerKw),
+      secondary(kpi('Theoretical Ra', r.ra, 'ROUGHNESS', { c: t('Rt {0}', fmtU(r.rt, 'ROUGHNESS')) })),
+      lifeKpi(r.toolLife, r.passesPerEdge != null ? t('per edge · ≈ {0} passes', sig(r.passesPerEdge)) : t('per edge')),
+    ],
     results(r) {
       return card(esc(t('Speeds & feeds')), rows([
         [t('Cutting speed'), fmtU(r.vc, 'CUTTING_SPEED'), 'em'],
@@ -519,6 +675,7 @@ const CALCS = {
         [t('Theoretical Ra'), fmtU(r.ra, 'ROUGHNESS'), 'em'],
         [t('Theoretical Rt (peak-to-valley)'), fmtU(r.rt, 'ROUGHNESS')],
       ]) + note(esc(t('Fc = kc1.1·b·h^(1−mc), h = f·sin κr, b = ap/sin κr. Ra ≈ f²/(32·rε); real finish is usually 1.5–3× worse.'))))
+        + lifeCard(r.toolLife, r.passesPerEdge == null ? [] : [[t('Passes per edge ({0} each)', fmtU(IN.turn.lengthOfCut, 'LENGTH')), sig(r.passesPerEdge)]])
         + adviceHtml(r.advice.filter((a) => a.level === 'INFO'));
     },
     after() {
@@ -529,13 +686,29 @@ const CALCS = {
 };
 
 let lastResult = null;
+let renderedView = '';
+
+/** Re-rendering a view keeps the scroll position of its panes (and of the page on phones). */
+function keepScroll(viewKey, renderFn) {
+  const same = renderedView === viewKey;
+  const panes = same ? [...document.querySelectorAll('#view .pane')].map((p) => p.scrollTop) : [];
+  const pageY = same ? window.scrollY : 0;
+  renderFn();
+  renderedView = viewKey;
+  if (!same) return;
+  document.querySelectorAll('#view .pane').forEach((p, i) => { p.scrollTop = panes[i] || 0; });
+  window.scrollTo(0, pageY);
+}
 
 function renderCalc() {
   const c = CALCS[S.tab];
-  const view = document.getElementById('view');
-  view.innerHTML = `<div id="sumSlot"></div><div class="calc"><div class="inputs">${c.inputs()}</div>
-    <aside class="results" id="results"></aside></div>${footer()}`;
-  recompute();
+  keepScroll('calc:' + S.tab, () => {
+    document.getElementById('view').innerHTML = `<div class="shell">
+      <aside class="pane inputs-pane" aria-label="${esc(t('Inputs'))}">${c.inputs()}</aside>
+      <section class="pane right" aria-live="polite"><div class="kpis" id="kpis"></div><div class="alerts advice" id="alerts"></div>
+        <div class="rgrid" id="results"></div>${footer()}</section></div>`;
+    recompute();
+  });
 }
 
 function recompute() {
@@ -549,11 +722,11 @@ function recompute() {
   }
   lastResult = r;
   if (c.after) c.after(r);
-  document.getElementById('sumSlot').innerHTML = c.summary(r);
-  // Cautions and dangers lead the results panel so they are never below its fold; notes stay at the end.
-  document.getElementById('results').innerHTML = adviceHtml(r.advice.filter((a) => a.level !== 'INFO')) + c.results(r);
-  const sum = document.getElementById('summary');
-  document.documentElement.style.setProperty('--summary-h', (sum ? sum.offsetHeight : 0) + 'px');
+  document.getElementById('kpis').innerHTML = kpiHtml(c.kpis(r));
+  // Cautions and dangers sit right under the key numbers so they are never below the fold; notes go last.
+  document.getElementById('alerts').innerHTML = r.advice.filter((a) => a.level !== 'INFO').map((a) => `<div class="adv ${a.level}">${esc(a.text)}</div>`).join('');
+  document.getElementById('results').innerHTML = c.results(r);
+  bindChart();
   for (const el of document.querySelectorAll('input[data-auto]')) {
     const [calc, key] = el.dataset.num.split('.');
     const autoKey = el.dataset.auto;
@@ -580,12 +753,42 @@ const REF_PAGES = [
   ['FORMULAS', 'Formulas & references', 'Equations used by the calculators with academic citations'],
 ];
 
-const R = {
+const R_DEF = {
   std: 'METRIC_COARSE', pctStd: 'UNC', pctThread: '1/4-20 UNC', pctDrill: null, series: '', near: null, screws: 'METRIC',
   fitSize: 25, hole: 'H', hg: 7, shaft: 'g', sg: 6, hrc: 45, ra: 1.6, vc: 100, dia: 10, rpm: 3000, fz: 0.05, z: 4, feed: 600,
   conv: 'LENGTH', base: 25.4, cskDia: 12, cskAngle: 90, cskTip: 0,
 };
-Object.assign(R, store.get('ref.state', {}));
+const R = Object.assign({}, R_DEF, store.get('ref.state', {}));
+
+/**
+ * Round inch equivalents of the metric defaults, in groups that switch together. A value is only
+ * swapped while it still equals the other system's default, so nothing the user typed is touched.
+ */
+const INCH_DEFAULTS = [
+  ['mill', { diameter: 12.7 }], ['mill', { cornerRadius: 0.762 }],
+  ['drill', { diameter: 9.525 }], ['drill', { depth: 28.575 }], ['drill', { spotDia: 6.35 }],
+  ['tap', { standard: 'UNC', thread: '1/4-20 UNC' }], ['tap', { threadDepth: 12.7 }],
+  ['turn', { diameter: 50.8 }], ['turn', { lengthOfCut: 101.6 }], ['turn', { targetRa: 63 / 39.37007874 }],
+  ['ref', { std: 'UNC' }], ['ref', { screws: 'INCH' }], ['ref', { fitSize: 25.4 }], ['ref', { vc: 91.44 }], ['ref', { dia: 12.7 }],
+  ['ref', { fz: 0.0508 }], ['ref', { feed: 609.6 }], ['ref', { cskDia: 12.7 }],
+];
+function swapUnitDefaults(toImperial) {
+  const same = (a, b) => (typeof a === 'number' && typeof b === 'number' ? Math.abs(a - b) < 1e-9 : a === b);
+  for (const [calc, inch] of INCH_DEFAULTS) {
+    const target = calc === 'ref' ? R : IN[calc];
+    const metric = calc === 'ref' ? R_DEF : DEF[calc];
+    const keys = Object.keys(inch);
+    const from = (k) => (toImperial ? metric[k] : inch[k]);
+    if (keys.every((k) => same(target[k], from(k)))) for (const k of keys) target[k] = toImperial ? inch[k] : metric[k];
+  }
+}
+function setUnits(units) {
+  if (units === S.units) return;
+  S.units = units;
+  swapUnitDefaults(units === 'IMPERIAL');
+  store.set('ref.state', R);
+}
+if (S.units === 'IMPERIAL') swapUnitDefaults(true);
 
 const len = (mm) => fmt(mm, 'LENGTH');
 const drillSub = (label, mm) => (!imperial() && / mm$/.test(label) ? fmtN(mm / 25.4, 4) + ' in' : len(mm));
@@ -759,11 +962,12 @@ const REF = {
 };
 
 function renderRef() {
-  const view = document.getElementById('view');
   const page = REF_PAGES.find((p) => p[0] === S.ref) || REF_PAGES[0];
-  view.innerHTML = `<div class="ref"><nav class="refnav">${REF_PAGES.map(([id, title, desc]) => `<button class="${id === page[0] ? 'on' : ''}" data-ref="${id}">${esc(t(title))}<small>${esc(t(desc))}</small></button>`).join('')}</nav>
-    <div class="refbody"><h2>${esc(t(page[1]))}</h2><div id="refContent">${REF[page[0]]()}</div></div></div>${footer()}`;
-  document.documentElement.style.setProperty('--summary-h', '0px');
+  keepScroll('ref', () => {
+    document.getElementById('view').innerHTML = `<div class="shell ref">
+      <nav class="pane refnav">${REF_PAGES.map(([id, title, desc]) => `<button class="${id === page[0] ? 'on' : ''}" data-ref="${id}">${esc(t(title))}<small>${esc(t(desc))}</small></button>`).join('')}</nav>
+      <section class="pane refbody"><h2>${esc(t(page[1]))}</h2><div id="refContent">${REF[page[0]]()}</div>${footer()}</section></div>`;
+  });
   store.set('ref.state', R);
 }
 
@@ -852,7 +1056,8 @@ function openSettings() {
       if (!chip) return;
       const name = chip.dataset.chip;
       if (name === 'lang' || name === 'units' || name === 'theme') {
-        S[name] = chip.dataset.v;
+        if (name === 'units') setUnits(chip.dataset.v);
+        else S[name] = chip.dataset.v;
         applyTheme();
         render();
         rerenderBody();
@@ -931,9 +1136,15 @@ document.addEventListener('click', (e) => {
   if (el.id === 'settingsBtn') { openSettings(); return; }
   if (el.dataset.tab) { S.tab = el.dataset.tab; render(); window.scrollTo(0, 0); return; }
   if (el.dataset.lang) { S.lang = el.dataset.lang; render(); return; }
-  if (el.dataset.units) { S.units = el.dataset.units; render(); return; }
+  if (el.dataset.units) { setUnits(el.dataset.units); render(); return; }
   if (el.dataset.action === 'material') { openMaterialPicker(); return; }
-  if (el.dataset.ref) { S.ref = el.dataset.ref; renderRef(); persist(); return; }
+  if (el.dataset.ref) {
+    S.ref = el.dataset.ref;
+    renderRef();
+    document.querySelector('.refbody').scrollTop = 0;
+    persist();
+    return;
+  }
   if (el.dataset.reset) {
     const [calc, key] = el.dataset.reset.split('.');
     IN[calc][key] = 100;
@@ -978,7 +1189,9 @@ document.addEventListener('input', (e) => {
   } else if (el.dataset.range) {
     const [calc, key] = el.dataset.range.split('.');
     IN[calc][key] = +el.value;
-    el.parentElement.querySelector('.pct').textContent = el.value + '%';
+    const pct = el.parentElement.querySelector('.pct');
+    pct.textContent = el.value + '%';
+    pct.classList.toggle('off', +el.value !== 100);
     recompute();
   } else if (el.dataset.rnum) {
     const key = el.dataset.rnum;
@@ -1031,9 +1244,11 @@ document.addEventListener('focusout', (e) => {
   if (v != null && !el.parentElement.classList.contains('bad')) el.value = fmtEdit(v * (+el.dataset.scale || 1), el.dataset.q, el.dataset.int ? 0 : 1);
 });
 
+
+let resizeTimer = null;
 window.addEventListener('resize', () => {
-  const sum = document.getElementById('summary');
-  document.documentElement.style.setProperty('--summary-h', (sum ? sum.offsetHeight : 0) + 'px');
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (S.tab !== 'ref') recompute(); }, 150);
 });
 
 applyTheme();

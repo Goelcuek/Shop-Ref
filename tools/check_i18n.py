@@ -48,7 +48,7 @@ def kotlin_ui_keys() -> set:
 
 
 # Web helpers whose arguments at these positions are translated with t() inside the helper.
-WEB_LABEL_ARGS = {"t": (0,), "num": (2,), "sel": (2,), "toggle": (2, 3), "slider": (2,), "tile": (0,), "rnum": (1,),
+WEB_LABEL_ARGS = {"t": (0,), "num": (2,), "sel": (2,), "toggle": (2, 3), "slider": (2,), "kpi": (0,), "rnum": (1,),
                   "machineEditor": (1,), "f": (1,)}
 JS_STR = r"""(['"])((?:(?!\1)[^\\]|\\.)*)\1"""
 

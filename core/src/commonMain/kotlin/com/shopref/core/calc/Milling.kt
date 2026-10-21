@@ -113,10 +113,16 @@ data class MillingResult(
     val torqueNm: Double,
     /** Tip deflection under the peak lateral force [mm]. */
     val deflection: Double,
+    /** Deflection guideline for the strategy [mm] (finishing 10 µm, otherwise 25 µm). */
+    val deflectionLimit: Double,
     val bendingStress: Double,
     val torsionStress: Double,
-    /** Tool life relative to the recommendation (1 = 100%). */
-    val relativeToolLife: Double,
+    /** Estimated tool life (extended Taylor, anchored at the standard recommendation). */
+    val toolLife: ToolLife.Estimate,
+    /** Feed path cut within the estimated tool life [m]. */
+    val toolLifePath: Double,
+    /** Volume removed within the estimated tool life [cm³]. */
+    val toolLifeVolume: Double,
     /** Theoretical surface cusp/scallop height [mm] or null if not applicable. */
     val cuspHeight: Double?,
     val rampAngleDeg: Double,
@@ -395,9 +401,22 @@ object MillingCalculator {
             else -> null
         }
 
+        val limit = if (input.strategy == MillStrategy.FINISHING) 0.010 else 0.025
+
         // --- Tool life, entry moves ------------------------------------------------------------------
-        val n = if (input.toolType == MillToolType.INDEXABLE) 0.3 else input.toolMaterial.taylorN
-        val relLife = ToolLife.relativeLife(vcRec, vc, n)
+        val indexable = input.toolType == MillToolType.INDEXABLE
+        val n = if (indexable) 0.3 else input.toolMaterial.taylorN
+        // Reference: the Standard chip-load level without overrides, at the same tool, strategy and machine.
+        val std = ChipLoadLevel.STANDARD
+        val hmaxStd = (
+            if (indexable) insertHex(m.group) * (1.0 + (std.chipFactor - 1.0) * 0.5)
+            else m.fzPerD * d * input.toolMaterial.chipLoadFactor * std.chipFactor
+            ) * input.machine.rigidity.feedFactor * strategyFeed
+        val life = ToolLife.estimate(
+            ToolLife.referenceMinutes(input.toolMaterial, insert = indexable, material = m), n,
+            vRef = vcRec / level.speedFactor * std.speedFactor, v = vc,
+            hRef = hmaxStd.coerceAtLeast(0.002), h = fz / (axialThinning * radialThinning),
+        )
         val ramp = rampAngle(m.family)
         val plungeFeed = 0.4 * hmaxTarget * z * rpm
         val rampFeed = 0.6 * feed
@@ -417,7 +436,6 @@ object MillingCalculator {
             advice += Advice.caution(powerShareText(L, power, available))
         }
         if (defl != null) {
-            val limit = if (input.strategy == MillStrategy.FINISHING) 0.010 else 0.025
             if (defl.tipDeflection > 4 * limit) {
                 advice += Advice.danger(
                     L.t(
@@ -505,15 +523,7 @@ object MillingCalculator {
         if (m.group == IsoGroup.H && !input.climb) {
             advice += Advice.caution(L.t("Use climb milling in hardened material.", "Sertleştirilmiş malzemede yukarı frezeleme (aynı yönlü) kullanın."))
         }
-        if (input.speedPercent != 100.0 && relLife < 0.95) {
-            val life = (relLife * 100).toInt()
-            advice += Advice.info(
-                L.t(
-                    "Estimated tool life $life% of recommendation (Taylor n = $n).",
-                    "Tahmini takım ömrü önerilenin %$life kadarı (Taylor n = $n).",
-                ),
-            )
-        }
+        if (life.outsideModel) advice += Advice.info(toolLifeOutsideText(L))
         if (m.notes.isNotBlank()) advice += Advice.info(L.tx(m.notes))
 
         return MillingResult(
@@ -522,8 +532,9 @@ object MillingCalculator {
             chipThinningFactor = thinning, hmax = fz / (axialThinning * radialThinning),
             feed = feed, mrr = mrr, engagementAngleDeg = phiE.toDeg(), forces = forces,
             powerKw = power, availablePowerKw = available, torqueNm = torque,
-            deflection = defl?.tipDeflection ?: 0.0, bendingStress = defl?.maxBendingStress ?: 0.0,
-            torsionStress = torsion, relativeToolLife = relLife, cuspHeight = cusp,
+            deflection = defl?.tipDeflection ?: 0.0, deflectionLimit = limit, bendingStress = defl?.maxBendingStress ?: 0.0,
+            torsionStress = torsion, toolLife = life, toolLifePath = feed * life.minutes / 1000.0,
+            toolLifeVolume = mrr * life.minutes, cuspHeight = cusp,
             rampAngleDeg = ramp, plungeFeed = plungeFeed, rampFeed = rampFeed, advice = advice,
         )
     }

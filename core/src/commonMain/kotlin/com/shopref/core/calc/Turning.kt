@@ -112,6 +112,10 @@ data class TurningResult(
     /** Theoretical Ra ≈ f²/(32·rε) [µm]. */
     val raMicron: Double,
     val timeMin: Double,
+    /** Estimated insert edge life (extended Taylor, anchored at the recommendation). */
+    val toolLife: ToolLife.Estimate,
+    /** Passes of the given length of cut per edge, or null without a length. */
+    val passesPerEdge: Double?,
     val advice: List<Advice>,
 )
 
@@ -257,10 +261,17 @@ object TurningCalculator {
         }
         if (m.notes.isNotBlank()) advice += Advice.info(L.tx(m.notes))
 
+        val life = ToolLife.estimate(
+            (if (input.grade == InsertGrade.HSS) 60.0 else 15.0) * ToolLife.slowWearFactor(m), input.grade.taylorN,
+            vRef = vcRec, v = vc, hRef = defaultFeed(input), h = fn,
+        )
+        if (life.outsideModel) advice += Advice.info(toolLifeOutsideText(L))
+
         return TurningResult(
             input = input, ap = ap, feed = fn, vcRecommended = vcRec, vc = vc, rpm = rpm, feedRate = feedRate,
             mrr = mrr, chipThickness = h, kc = kc, fc = fc, ff = ff, fp = fp, powerKw = power,
             availablePowerKw = available, torqueNm = torque, rtMicron = rt, raMicron = ra, timeMin = time,
+            toolLife = life, passesPerEdge = if (input.lengthOfCut > 0) life.minutes / time else null,
             advice = advice,
         )
     }

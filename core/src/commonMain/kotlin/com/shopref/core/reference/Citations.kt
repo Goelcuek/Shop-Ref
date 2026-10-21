@@ -23,7 +23,7 @@ object Citations {
         Citation("ArmaregoChen2002", "Armarego, E.J.A., Chen, M.N.P. (2002). Predictive cutting models for the forces and torque in machine tapping with straight flute taps. CIRP Annals 51(1), 75–78.", "Tapping torque mechanics"),
         Citation("Taylor1907", "Taylor, F.W. (1907). On the art of cutting metals. Trans. ASME 28, 31–350.", "Tool life v·T^n = C"),
         Citation("Sandvik", "Sandvik Coromant. Metalworking formulas and definitions; Technical Guide (material classification CMC/ISO).", "kc rake correction (1 − γ/100), drilling/turning power formulas, material groups"),
-        Citation("MachHB", "Oberg, E. et al. Machinery's Handbook, 31st ed. Industrial Press (2020).", "Percent thread, tap drills, drill sizes, clearance holes, unit power"),
+        Citation("MachHB", "Oberg, E. et al. Machinery's Handbook, 31st ed. Industrial Press (2020).", "Percent thread, tap drills, drill sizes, clearance holes, unit power, 15-min tool-life basis of speed tables"),
         Citation("MMC", "Mitsubishi Materials. Technical information: end-mill deflection (rod 0.7–0.8·D), drilling chisel-edge thrust (50–70%).", "Rules of thumb cross-check"),
         Citation("ISO286", "ISO 286-1/-2:2010. Geometrical product specifications — ISO code system for tolerances on linear sizes.", "Fits and tolerances"),
         Citation("ISO965", "ISO 965-1:2013. ISO general purpose metric screw threads — Tolerances.", "6H minor diameter tolerance"),
@@ -49,7 +49,14 @@ object Citations {
         FormulaEntry("Tapping torque", "M = kc·A·dm/2,  A = 0.125·P·t + tan30°·t²\nfull depth: M ≈ kc·P²·D/8450   (rule of thumb kc·P²·D/8000)", "Energy balance on the thread groove; process factors for land friction and chip packing; forming ≈ 2× cutting.", listOf("CaoSutherland2002", "ArmaregoChen2002", "Kienzle1952")),
         FormulaEntry("Percent thread", "%cut = (D − d)/(1.299·P)·100\nd_form = D − 0.0068·%·P", "P = 1/TPI for inch threads.", listOf("MachHB")),
         FormulaEntry("Turning forces & finish", "Fc = kc1.1·(ap/sin κr)·(f·sin κr)^(1−mc)\nRt = f²/(8·rε),  Ra ≈ f²/(32·rε)", "Feed/passive forces from Ft = Fc·tan(β − γ).", listOf("Kienzle1952", "Merchant1945")),
-        FormulaEntry("Tool life", "v·T^n = C   ⇒   T/T0 = (v0/v)^(1/n)", "n ≈ 0.125 HSS, 0.25 carbide, 0.3 coated carbide, 0.5 ceramic.", listOf("Taylor1907")),
+        FormulaEntry(
+            "Tool life",
+            "v·T^n·h^a = C   ⇒   T = Tref·(vref/v)^(1/n)·(href/h)^(a/n)",
+            "n ≈ 0.125 HSS, 0.25 carbide, 0.3 coated carbide, 0.5 ceramic; a = 0.3. Tref at the standard recommendation: " +
+                "15 min for inserts and ceramics, 45 min for solid carbide, 60 min for HSS; ×4 in non-abrasive non-ferrous metals and plastics. " +
+                "Expect ±50% from coolant, runout and work-holding.",
+            listOf("Taylor1907", "MachHB"),
+        ),
         FormulaEntry("Scallop height", "h = R − √(R² − (s/2)²)", "Ball radius R, stepover s.", listOf("Martellotti1941")),
         FormulaEntry("Arc feed compensation", "internal: vf,centre = vf·(Dw − Dt)/Dw\nexternal: vf,centre = vf·(Dw + Dt)/Dw", "Thread milling and circular interpolation.", listOf("Sandvik")),
     )

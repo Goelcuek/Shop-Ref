@@ -26,6 +26,10 @@ grades, quick rpm/feed calculators, unit converter, full material data, and ever
 **Languages:** English and Turkish (Türkçe), following the phone/browser language or chosen in Settings. Shop-floor
 terms use the jargon machinists actually say (e.g. *diş başı ilerleme*, *sarkma boyu*, *kılavuz*, *havşa*).
 
+**Tool life:** every calculator estimates the cutting time to the wear limit and what it buys — feed path and
+volume removed (milling), holes and metres drilled per drill, holes per tap, passes per insert edge — and how a
+speed or chip-load change moves it.
+
 **Machine profiles:** max/min rpm, max feed, spindle power, torque limit (constant-torque region),
 efficiency and rigidity class for the mill and the lathe — recommendations are clamped and checked against them.
 
@@ -53,7 +57,10 @@ website) and are unit tested against closed-form results.
 * **Tapping** — energy balance over the thread groove, `M = kc·A·dm/2`, which reproduces the tap-maker rule
   `M ≈ kc·P²·D/8000`; process factors for land friction and chip packing in blind holes (Cao & Sutherland 2002,
   *IJMTM* 42:1527; Armarego & Chen 2002). Tap strength from torsion of the core.
-* **Tool life** — Taylor `v·Tⁿ = C` (Taylor 1907).
+* **Tool life** — extended Taylor `v·Tⁿ·hᵃ = C` (Taylor 1907), anchored at the standard recommendation:
+  `T = Tref·(vref/v)^(1/n)·(href/h)^(a/n)` with a = 0.3. Tref follows the catalogue basis of the speed data —
+  15 min for inserts (Machinery's Handbook V15 tables) and ceramics, 45 min for solid carbide, 60 min for HSS,
+  ×4 in non-abrasive non-ferrous work. Clamped to 0.05–8×Tref, where Taylor still holds; expect ±50%.
 * **Standards** — ISO 286 (fits), ISO 965-1 (6H minor Ø), ASME B1.1 (2B minor Ø), ASME B1.20.1 (NPT),
   ISO 228-1 (G), ISO 273 (clearance holes), ASTM E140 (hardness), ISO 513 (material groups).
 
@@ -65,9 +72,11 @@ The full list with page references is in the app under *Reference → Formulas &
 
 ## Website
 
-The website is one self-contained HTML file (≈600 KB, works offline once loaded) with a desktop layout: inputs
-on the left, a sticky results panel with the force chart on the right, and the key numbers pinned across the
-top while you edit. It runs the same compiled calculation engine as the Android app.
+The website is one self-contained HTML file (≈650 KB, works offline once loaded). On a desktop it works like an
+app: the inputs sit in a side panel, and the results area keeps eight key numbers (with power, deflection and
+tap-strength warnings) pinned above cards for speeds, forces, tool life and an interactive force-vs-rotation
+chart. On a phone it becomes one scrolling column with six pinned numbers. It runs the same compiled
+calculation engine as the Android app.
 
 The **Website** workflow (`.github/workflows/pages.yml`) compiles the engine to JavaScript, bundles
 `web/dist/index.html`, runs a headless-Chromium smoke test and deploys it to GitHub Pages from the default

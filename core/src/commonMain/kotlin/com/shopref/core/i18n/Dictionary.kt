@@ -242,7 +242,12 @@ object Dictionary {
         "Turning forces & finish" to "Tornalama kuvvetleri ve yüzey",
         "Feed/passive forces from Ft = Fc·tan(β − γ)." to "İlerleme/pasif kuvvetler Ft = Fc·tan(β − γ) ile.",
         "Tool life" to "Takım ömrü",
-        "n ≈ 0.125 HSS, 0.25 carbide, 0.3 coated carbide, 0.5 ceramic." to "n ≈ 0,125 HSS, 0,25 karbür, 0,3 kaplamalı karbür, 0,5 seramik.",
+        "n ≈ 0.125 HSS, 0.25 carbide, 0.3 coated carbide, 0.5 ceramic; a = 0.3. Tref at the standard recommendation: " +
+            "15 min for inserts and ceramics, 45 min for solid carbide, 60 min for HSS; ×4 in non-abrasive non-ferrous metals and plastics. " +
+            "Expect ±50% from coolant, runout and work-holding." to
+            "n ≈ 0,125 HSS, 0,25 karbür, 0,3 kaplamalı karbür, 0,5 seramik; a = 0,3. Standart öneride Tref: uç ve seramiklerde 15 dk, " +
+            "karbür takımlarda 45 dk, HSS'de 60 dk; aşındırıcı olmayan demir dışı metal ve plastiklerde ×4. " +
+            "Soğutma, salgı ve bağlamaya göre ±%50 sapma beklenir.",
         "Scallop height" to "Tarak (scallop) yüksekliği",
         "Ball radius R, stepover s." to "Küre yarıçapı R, adım s.",
         "Arc feed compensation" to "Dairesel ilerleme düzeltmesi",
@@ -263,7 +268,7 @@ object Dictionary {
         "Tapping torque mechanics" to "Kılavuz torku mekaniği",
         "Tool life v·T^n = C" to "Takım ömrü v·T^n = C",
         "kc rake correction (1 − γ/100), drilling/turning power formulas, material groups" to "kc talaş açısı düzeltmesi (1 − γ/100), delme/tornalama güç formülleri, malzeme grupları",
-        "Percent thread, tap drills, drill sizes, clearance holes, unit power" to "Diş oluşma oranı, kılavuz matkapları, matkap ölçüleri, geçiş delikleri, birim güç",
+        "Percent thread, tap drills, drill sizes, clearance holes, unit power, 15-min tool-life basis of speed tables" to "Diş oluşma oranı, kılavuz matkapları, matkap ölçüleri, geçiş delikleri, birim güç, hız tablolarının 15 dk takım ömrü esası",
         "Rules of thumb cross-check" to "Pratik kural karşılaştırması",
         "Fits and tolerances" to "Geçmeler ve toleranslar",
         "6H minor diameter tolerance" to "6H diş dibi çapı toleransı",

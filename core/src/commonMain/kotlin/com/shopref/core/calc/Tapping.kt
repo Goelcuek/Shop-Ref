@@ -13,6 +13,7 @@ import com.shopref.core.tooling.ToolCondition
 import com.shopref.core.tooling.ToolMaterial
 import com.shopref.core.units.UnitSystem
 import kotlin.math.PI
+import kotlin.math.max
 import kotlin.math.pow
 
 enum class TapType(val label: String, val speedFactor: Double, val isForming: Boolean) {
@@ -78,6 +79,10 @@ data class TappingResult(
     val powerKw: Double,
     /** Minimum drill depth for a blind hole with the requested full-thread depth [mm]. */
     val minDrillDepth: Double,
+    /** Estimated tool life in cutting time (extended Taylor, anchored at the recommendation). */
+    val toolLife: ToolLife.Estimate,
+    /** Holes threaded within the estimated tool life, or null without a thread depth. */
+    val holesPerTap: Double?,
     val advice: List<Advice>,
 )
 
@@ -301,12 +306,17 @@ val clutch = f.torque(minOf(torque * 1.5, breaking * 0.7))
                 "Kör delik: ${f.len(input.threadDepth)} tam diş için en az ${f.len(minDrillDepth)} derin delin.",
             ),
         )
+        // Feed per revolution is the pitch, so only speed moves the tap along its Taylor curve.
+        val life = ToolLife.estimate(ToolLife.referenceMinutes(input.tapMaterial, material = m), input.tapMaterial.taylorN, vRef = vcRec, v = vc)
+        if (life.outsideModel) advice += Advice.info(toolLifeOutsideText(L))
+        val tapTime = input.threadDepth / max(rpm * p, 1e-6)
 
         return TappingResult(
             input = input, vcRecommended = vcRec, vc = vc, rpm = rpm, feed = rpm * p, targetPercent = target,
             idealDrill = ideal, recommendedDrill = recommended, drill = drill, percentThread = percent,
             radialDepth = t, chipThickness = h, torqueNm = torque, breakingTorqueNm = breaking,
-            safetyFactor = sf, powerKw = power, minDrillDepth = minDrillDepth, advice = advice,
+            safetyFactor = sf, powerKw = power, minDrillDepth = minDrillDepth, toolLife = life,
+            holesPerTap = if (input.threadDepth > 0) life.minutes / tapTime else null, advice = advice,
         )
     }
 

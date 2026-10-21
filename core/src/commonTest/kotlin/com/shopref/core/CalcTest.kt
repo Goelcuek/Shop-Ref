@@ -199,4 +199,56 @@ class CalcTest {
         assertClose(0.2 * 0.2 / (32 * 0.8) * 1000, r.raMicron, 1e-9)
         assertTrue(r.ff > 0 && r.fp > 0)
     }
+
+    @Test
+    fun toolLifeIsReferenceAtRecommendationAndFollowsTaylor() {
+        val base = MillingInput(steel, diameter = 12.0, flutes = 4)
+        val rec = MillingCalculator.calculate(base)
+        assertEquals(45.0, rec.toolLife.minutes, 1e-6, "solid carbide at the standard recommendation")
+        assertEquals(rec.feed * 45.0 / 1000.0, rec.toolLifePath, 1e-6)
+        assertEquals(rec.mrr * 45.0, rec.toolLifeVolume, 1e-6)
+
+        // 20% faster: T = Tref·1.2^(−1/0.25).
+        val fast = MillingCalculator.calculate(base.copy(speedPercent = 120.0))
+        assertEquals(45.0 * 1.2.pow(-4.0), fast.toolLife.minutes, 0.01)
+
+        // Higher chip load costs life, more gently than speed: T ∝ h^(−0.3/n).
+        val heavy = MillingCalculator.calculate(base.copy(feedPercent = 150.0))
+        assertEquals(45.0 * 1.5.pow(-0.3 / 0.25), heavy.toolLife.minutes, 0.05)
+
+        val conservative = MillingCalculator.calculate(base.copy(chipLoadLevel = ChipLoadLevel.CONSERVATIVE)).toolLife.minutes
+        val aggressive = MillingCalculator.calculate(base.copy(chipLoadLevel = ChipLoadLevel.AGGRESSIVE)).toolLife.minutes
+        assertTrue(conservative > 45.0 && aggressive < 45.0 && aggressive > 15.0, "levels: $conservative / $aggressive")
+
+        // Far outside the tested range the estimate is clamped and flagged.
+        val hssFast = MillingCalculator.calculate(base.copy(toolMaterial = ToolMaterial.HSS, speedPercent = 200.0))
+        assertTrue(hssFast.toolLife.outsideModel)
+        assertEquals(60.0 * 0.05, hssFast.toolLife.minutes, 1e-6)
+    }
+
+    @Test
+    fun toolLifeForDrillsTapsAndInserts() {
+        val drill = DrillingCalculator.calculate(DrillingInput(steel, DrillType.CARBIDE, diameter = 10.0, depth = 30.0))
+        assertEquals(45.0, drill.toolLife.minutes, 1e-6)
+        assertEquals(45.0 / drill.timeMin, drill.holesPerTool!!, 1e-6)
+        assertEquals(drill.holesPerTool!! * 0.030, drill.toolLifeLength!!, 1e-6)
+
+        val tap = TappingCalculator.calculate(TappingInput(steel, Threads.find("M8×1.25")!!))
+        assertEquals(60.0, tap.toolLife.minutes, 1e-6, "HSS-Co tap")
+        assertTrue(tap.holesPerTap!! in 500.0..20_000.0, "holes per tap ${tap.holesPerTap}")
+
+        val turn = TurningCalculator.calculate(TurningInput(steel))
+        assertEquals(15.0, turn.toolLife.minutes, 1e-6, "insert edge at the recommendation")
+        val doubled = TurningCalculator.calculate(TurningInput(steel, feed = 2.0 * TurningCalculator.defaultFeed(TurningInput(steel))))
+        assertEquals(15.0 * 0.5, doubled.toolLife.minutes, 0.01, "coated carbide n = 0.3: T ∝ f^−1")
+    }
+
+    @Test
+    fun significantFigures() {
+        assertEquals("390", com.shopref.core.units.formatSignificant(391.2))
+        assertEquals("8200", com.shopref.core.units.formatSignificant(8204.0))
+        assertEquals("45", com.shopref.core.units.formatSignificant(45.0))
+        assertEquals("7.5", com.shopref.core.units.formatSignificant(7.5))
+        assertEquals("0.012", com.shopref.core.units.formatSignificant(0.0123))
+    }
 }

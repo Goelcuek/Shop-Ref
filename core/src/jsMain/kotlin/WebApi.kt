@@ -18,6 +18,7 @@ import com.shopref.core.calc.TapType
 import com.shopref.core.calc.TappingCalculator
 import com.shopref.core.calc.TappingInput
 import com.shopref.core.calc.TurnOperation
+import com.shopref.core.calc.ToolLife
 import com.shopref.core.calc.TurningCalculator
 import com.shopref.core.calc.TurningInput
 import com.shopref.core.i18n.Dictionary
@@ -103,6 +104,10 @@ private fun machine(o: dynamic, fallback: Machine): Machine {
 private fun machineJs(m: Machine): dynamic = obj {
     it.name = m.name; it.maxRpm = m.maxRpm; it.minRpm = m.minRpm; it.maxFeed = m.maxFeed; it.powerKw = m.powerKw
     it.maxTorqueNm = m.maxTorqueNm; it.efficiency = m.efficiency; it.rigidity = m.rigidity.name
+}
+
+private fun lifeJs(e: ToolLife.Estimate): dynamic = obj {
+    it.minutes = e.minutes; it.referenceMinutes = e.referenceMinutes; it.factor = e.factor; it.outsideModel = e.outsideModel; it.n = e.n
 }
 
 private fun adviceJs(list: List<Advice>): dynamic =
@@ -229,9 +234,9 @@ fun milling(o: dynamic): dynamic {
         it.mrr = r.mrr; it.powerKw = r.powerKw; it.availablePowerKw = r.availablePowerKw; it.torqueNm = r.torqueNm
         it.peakTorque = r.forces.peakTorque; it.peakFxy = r.forces.peakFxy; it.meanFxy = r.forces.meanFxy
         it.meanFx = r.forces.meanFx; it.meanFy = r.forces.meanFy; it.meanFz = r.forces.meanFz; it.meanKc = r.forces.meanKc
-        it.teethInCut = r.forces.teethInCut; it.deflection = r.deflection; it.bendingStress = r.bendingStress
+        it.teethInCut = r.forces.teethInCut; it.deflection = r.deflection; it.deflectionLimit = r.deflectionLimit; it.bendingStress = r.bendingStress
         it.torsionStress = r.torsionStress; it.allowableStress = input.toolMaterial.allowableBendingStress
-        it.relativeToolLife = r.relativeToolLife; it.cuspHeight = r.cuspHeight; it.rampAngleDeg = r.rampAngleDeg
+        it.toolLife = lifeJs(r.toolLife); it.toolLifePath = r.toolLifePath; it.toolLifeVolume = r.toolLifeVolume; it.cuspHeight = r.cuspHeight; it.rampAngleDeg = r.rampAngleDeg
         it.rampFeed = r.rampFeed; it.plungeFeed = r.plungeFeed; it.rakeDeg = r.rakeDeg; it.leadAngleDeg = r.leadAngleDeg
         it.samples = r.forces.samples.map { s ->
             obj { p -> p.a = s.angleDeg; p.fx = s.fx; p.fy = s.fy; p.fz = s.fz; p.fxy = s.fxy }
@@ -257,6 +262,7 @@ fun drilling(o: dynamic): dynamic {
         it.rpm = r.rpm; it.vc = r.vc; it.vcRecommended = r.vcRecommended; it.fn = r.fn; it.feed = r.feed
         it.chipThickness = r.chipThickness; it.kc = r.kc; it.torqueNm = r.torqueNm; it.thrust = r.thrust
         it.powerKw = r.powerKw; it.availablePowerKw = r.availablePowerKw; it.mrr = r.mrr; it.timeMin = r.timeMin
+        it.toolLife = lifeJs(r.toolLife); it.holesPerTool = r.holesPerTool; it.toolLifeLength = r.toolLifeLength
         it.pointLength = r.pointLength; it.peckAdvice = r.peckAdvice; it.reamAllowance = r.reamAllowance
         it.preHoleAuto = d - DrillingCalculator.reamAllowance(d)
         it.nearest = drillJs(DrillSizes.nearest(d))
@@ -308,6 +314,7 @@ fun tapping(o: dynamic): dynamic {
         it.percentThread = r.percentThread; it.radialDepth = r.radialDepth; it.chipThickness = r.chipThickness
         it.torqueNm = r.torqueNm; it.breakingTorqueNm = r.breakingTorqueNm; it.safetyFactor = r.safetyFactor
         it.powerKw = r.powerKw; it.minDrillDepth = r.minDrillDepth; it.advice = adviceJs(r.advice)
+        it.toolLife = lifeJs(r.toolLife); it.holesPerTap = r.holesPerTap
     }
 }
 
@@ -336,6 +343,7 @@ fun turning(o: dynamic): dynamic {
         it.chipThickness = r.chipThickness; it.kc = r.kc; it.fc = r.fc; it.ff = r.ff; it.fp = r.fp; it.powerKw = r.powerKw
         it.availablePowerKw = r.availablePowerKw; it.torqueNm = r.torqueNm; it.rt = r.rtMicron; it.ra = r.raMicron
         it.timeMin = r.timeMin; it.advice = adviceJs(r.advice)
+        it.toolLife = lifeJs(r.toolLife); it.passesPerEdge = r.passesPerEdge
     }
 }
 

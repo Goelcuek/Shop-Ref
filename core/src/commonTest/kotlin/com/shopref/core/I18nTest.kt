@@ -38,7 +38,7 @@ class I18nTest {
     /** Strings that are identical in Turkish (symbols, trade names, grades). */
     private val sameInTurkish = setOf(
         "HSS", "HSS-Co (M42/HSS-E)", "TiN", "TiCN", "TiAlN", "AlTiN", "AlCrN", "AlTiSiN (nACo)", "ZrN", "TiB2", "DLC",
-        "CBN", "PCD", "mm", "in", "µm", "SFM", "IPM", "IPR", "kW", "hp", "N", "lbf", "N·m", "in·lbf", "MPa", "ksi", "µin", "°", "%",
+        "CBN", "PCD", "mm", "in", "µm", "m", "ft", "cm³", "in³", "SFM", "IPM", "IPR", "kW", "hp", "N", "lbf", "N·m", "in·lbf", "MPa", "ksi", "µin", "°", "%",
     )
 
     private fun engineStrings(): List<String> = buildList {

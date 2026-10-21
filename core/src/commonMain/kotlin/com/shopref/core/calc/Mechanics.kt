@@ -1,6 +1,8 @@
 package com.shopref.core.calc
 
+import com.shopref.core.material.Family
 import com.shopref.core.material.Material
+import com.shopref.core.tooling.ToolMaterial
 import kotlin.math.atan
 import kotlin.math.cos
 import kotlin.math.max
@@ -109,11 +111,69 @@ object MillingGeometry {
     fun peripheralCuspHeight(fz: Double, d: Double): Double = fz * fz / (4.0 * d)
 }
 
-/** Taylor tool-life relation v·T^n = C (Taylor 1907). */
+/**
+ * Tool life from the extended Taylor relation v·T^n·h^a = C (Taylor 1907; feed term as in the
+ * extended form used in Machinery's Handbook), anchored at the standard recommendation:
+ *
+ *   T = Tref · (vref/v)^(1/n) · (href/h)^(a/n)
+ *
+ * Catalogue cutting data are set for a nominal life (Machinery's Handbook speed tables use 15 min for
+ * carbide turning, with adjustment curves for 45–120 min), so the recommendation of this app is taken
+ * to give [referenceMinutes] and departures in speed or chip thickness scale it. The chip-thickness
+ * weight a = 0.3 sits at the low end of published extended-Taylor feed exponents (≈0.3–0.7), since the
+ * recommendations already apply chip thinning.
+ */
 object ToolLife {
+    /** Chip-thickness weight a in v·T^n·h^a = C. */
+    const val CHIP_WEIGHT = 0.3
+
+    /** Outside this range of T/Tref other wear mechanisms dominate and Taylor no longer applies. */
+    private const val MIN_FACTOR = 0.05
+    private const val MAX_FACTOR = 8.0
+
+    data class Estimate(
+        /** Cutting time until the wear limit [min]. */
+        val minutes: Double,
+        /** Life assumed at the standard recommendation [min]. */
+        val referenceMinutes: Double,
+        /** minutes / referenceMinutes. */
+        val factor: Double,
+        /** True when the conditions are so far from the recommendation that the factor was clamped. */
+        val outsideModel: Boolean,
+        /** Taylor exponent used. */
+        val n: Double,
+    )
+
     /** Tool life relative to the reference speed: T/Tref = (vref/v)^(1/n). */
     fun relativeLife(vRef: Double, v: Double, n: Double): Double {
         if (v <= 0 || vRef <= 0) return 1.0
         return (vRef / v).pow(1.0 / n)
+    }
+
+    fun estimate(referenceMinutes: Double, n: Double, vRef: Double, v: Double, hRef: Double = 1.0, h: Double = 1.0): Estimate {
+        val speedTerm = relativeLife(vRef, v, n)
+        val chipTerm = if (h > 0 && hRef > 0) (hRef / h).pow(CHIP_WEIGHT / n) else 1.0
+        val raw = speedTerm * chipTerm
+        val factor = raw.coerceIn(MIN_FACTOR, MAX_FACTOR)
+        return Estimate(referenceMinutes * factor, referenceMinutes, factor, factor != raw, n)
+    }
+
+    /**
+     * Cutting time the recommended data are assumed to give [min]: 15 min per edge for inserts (their
+     * speeds derive from turning data, Machinery's Handbook V15 basis) and ceramics, 60 min for HSS
+     * (classic v60 basis), 45 min for solid carbide and PCD tools. Non-abrasive non-ferrous work
+     * (aluminium except high-silicon, magnesium, copper alloys, plastics) wears tools far more slowly at
+     * its recommended speeds, so the basis is four times longer there.
+     */
+    fun referenceMinutes(substrate: ToolMaterial, insert: Boolean = false, material: Material? = null): Double = when {
+        substrate.isHss -> 60.0
+        insert || substrate == ToolMaterial.CERAMIC -> 15.0
+        else -> 45.0
+    } * slowWearFactor(material)
+
+    fun slowWearFactor(material: Material?): Double = when (material?.family) {
+        Family.ALUMINUM -> if (material.id == "n_al_high_si") 1.0 else 4.0
+        Family.MAGNESIUM, Family.COPPER, Family.PLASTIC -> 4.0
+        else -> 1.0
     }
 }
