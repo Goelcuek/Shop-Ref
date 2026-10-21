@@ -1,5 +1,6 @@
 package com.shopref.app.ui.reference
 
+import com.shopref.app.ui.LocalLang
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -71,6 +72,7 @@ private fun clearanceText(um: Double, units: UnitSystem): String =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FitsPage(settings: AppSettings, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     val units = settings.units
     var size by remember { mutableDoubleStateOf(25.0) }
     var holeLetter by remember { mutableStateOf("H") }
@@ -85,8 +87,8 @@ fun FitsPage(settings: AppSettings, modifier: Modifier = Modifier) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        SectionCard("Fit") {
-            NumberField("Nominal size", size, { v -> v?.let { size = it } }, Quantity.LENGTH, units, Modifier.fillMaxWidth(), min = 0.01)
+        SectionCard(L.tx("Fit")) {
+            NumberField(L.tx("Nominal size"), size, { v -> v?.let { size = it } }, Quantity.LENGTH, units, Modifier.fillMaxWidth(), min = 0.01)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Fits.commonFits.forEach { cf ->
                     AssistChip(
@@ -98,44 +100,43 @@ fun FitsPage(settings: AppSettings, modifier: Modifier = Modifier) {
                 }
             }
             FieldRow {
-                Dropdown("Hole", Fits.holeLetters, holeLetter, { holeLetter = it }, Modifier.weight(1f))
-                Dropdown("IT", gradeOptions, holeGrade, { holeGrade = it }, Modifier.weight(1f))
-                Dropdown("Shaft", Fits.shaftLetters, shaftLetter, { shaftLetter = it }, Modifier.weight(1f))
-                Dropdown("IT", gradeOptions, shaftGrade, { shaftGrade = it }, Modifier.weight(1f))
+                Dropdown(L.tx("Hole"), Fits.holeLetters, holeLetter, { holeLetter = it }, Modifier.weight(1f))
+                Dropdown(L.tx("IT"), gradeOptions, holeGrade, { holeGrade = it }, Modifier.weight(1f))
+                Dropdown(L.tx("Shaft"), Fits.shaftLetters, shaftLetter, { shaftLetter = it }, Modifier.weight(1f))
+                Dropdown(L.tx("IT"), gradeOptions, shaftGrade, { shaftGrade = it }, Modifier.weight(1f))
             }
             Fits.commonFits.firstOrNull { it.hole == holeLetter && it.holeGrade == holeGrade && it.shaft == shaftLetter && it.shaftGrade == shaftGrade }?.let {
-                SmallNote("${it.name}: ${it.use}")
+                SmallNote("${L.tx(it.name)}: ${L.tx(it.use)}")
             }
         }
         if (fit == null) {
-            SmallNote("This combination is not available (sizes up to 500 mm; K/M/N holes up to IT8, P/R/S up to IT7).")
+            SmallNote(L.tx("This combination is not available (sizes up to 500 mm; K/M/N holes up to IT8, P/R/S up to IT7)."))
         } else {
-            SectionCard("$holeLetter$holeGrade / $shaftLetter$shaftGrade at ${Quantity.LENGTH.formatWithUnit(size, units)}") {
-                ResultRow("Hole deviations", dev(fit.hole.upper) + " / " + dev(fit.hole.lower) + " µm")
-                ResultRow("Hole limits", limits(size, fit.hole, units) + " " + Quantity.LENGTH.label(units), emphasize = true)
-                ResultRow("Shaft deviations", dev(fit.shaft.upper) + " / " + dev(fit.shaft.lower) + " µm")
-                ResultRow("Shaft limits", limits(size, fit.shaft, units) + " " + Quantity.LENGTH.label(units), emphasize = true)
+            SectionCard(L.tx("{0} at {1}", "$holeLetter$holeGrade / $shaftLetter$shaftGrade", Quantity.LENGTH.formatWithUnit(size, units, lang = L))) {
+                ResultRow(L.tx("Hole deviations"), dev(fit.hole.upper) + " / " + dev(fit.hole.lower) + " µm")
+                ResultRow(L.tx("Hole limits"), limits(size, fit.hole, units) + " " + Quantity.LENGTH.label(units), emphasize = true)
+                ResultRow(L.tx("Shaft deviations"), dev(fit.shaft.upper) + " / " + dev(fit.shaft.lower) + " µm")
+                ResultRow(L.tx("Shaft limits"), limits(size, fit.shaft, units) + " " + Quantity.LENGTH.label(units), emphasize = true)
                 HorizontalDivider()
-                ResultRow("Max clearance", clearanceText(fit.maxClearance, units))
-                ResultRow("Min clearance", clearanceText(fit.minClearance, units))
-                ResultRow(
-                    "Fit type",
+                ResultRow(L.tx("Max clearance"), clearanceText(fit.maxClearance, units))
+                ResultRow(L.tx("Min clearance"), clearanceText(fit.minClearance, units))
+                ResultRow(L.tx("Fit type"),
                     when (fit.type) {
-                        FitType.CLEARANCE -> "Clearance"
-                        FitType.TRANSITION -> "Transition"
-                        FitType.INTERFERENCE -> "Interference"
+                        FitType.CLEARANCE -> L.tx("Clearance")
+                        FitType.TRANSITION -> L.tx("Transition")
+                        FitType.INTERFERENCE -> L.tx("Interference")
                     },
                     emphasize = true,
                 )
-                SmallNote("Negative clearance = interference.")
+                SmallNote(L.tx("Negative clearance = interference."))
             }
         }
-        SectionCard("Standard tolerance grades at this size (µm)") {
+        SectionCard(L.tx("Standard tolerance grades at this size (µm)")) {
             val grades = Fits.grades.toList()
             val w = List(grades.size) { 1f }
             TableRow(grades.map { "IT$it" }, w, header = true)
             TableRow(grades.map { g -> Fits.it(g, size)?.toString() ?: "—" }, w)
-            SmallNote("ISO 286-1. Typical: IT6–IT7 ground/reamed, IT8–IT9 fine turned/milled, IT11 general machining.")
+            SmallNote(L.tx("ISO 286-1. Typical: IT6–IT7 ground/reamed, IT8–IT9 fine turned/milled, IT11 general machining."))
         }
     }
 }
@@ -144,17 +145,18 @@ fun FitsPage(settings: AppSettings, modifier: Modifier = Modifier) {
 
 @Composable
 fun HardnessPage(modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     var hrc by remember { mutableDoubleStateOf(45.0) }
     LazyColumn(modifier) {
         item {
             Column(Modifier.padding(12.dp)) {
-                SectionCard("Convert from HRC") {
-                    NumberField("Rockwell C", hrc, { v -> v?.let { hrc = it } }, Quantity.NONE, UnitSystem.METRIC, Modifier.fillMaxWidth(), decimals = 1)
+                SectionCard(L.tx("Convert from HRC")) {
+                    NumberField(L.tx("Rockwell C"), hrc, { v -> v?.let { hrc = it } }, Quantity.NONE, UnitSystem.METRIC, Modifier.fillMaxWidth(), decimals = 1)
                     val hv = Hardness.hvFromHrc(hrc)
                     val row = Hardness.rows.minByOrNull { abs(it.hrc - hrc) }
-                    ResultRow("Vickers HV", hv?.let { formatNumber(it, 0) } ?: "out of range", emphasize = true)
-                    ResultRow("Brinell HB (≈)", row?.hb?.toString() ?: "—")
-                    ResultRow("Tensile strength (≈)", row?.tensileMpa?.let { "$it MPa / ${formatNumber(it * 0.1450377, 0)} ksi" } ?: "—")
+                    ResultRow(L.tx("Vickers HV"), hv?.let { formatNumber(it, 0) } ?: L.tx("out of range"), emphasize = true)
+                    ResultRow(L.tx("Brinell HB (≈)"), row?.hb?.toString() ?: "—")
+                    ResultRow(L.tx("Tensile strength (≈)"), row?.tensileMpa?.let { "$it MPa / ${formatNumber(it * 0.1450377, 0)} ksi" } ?: "—")
                 }
             }
         }
@@ -163,7 +165,7 @@ fun HardnessPage(modifier: Modifier = Modifier) {
         items(Hardness.rows) { r ->
             TableRow(listOf(r.hrc.toString(), r.hv.toString(), r.hb?.toString() ?: "—", r.tensileMpa?.toString() ?: "—"), w, highlight = r.hrc == Math.round(hrc).toInt())
         }
-        item { SmallNote("Approximate conversions for non-austenitic steels (ASTM E140). Tensile ≈ 3.45·HB.", Modifier.padding(12.dp)) }
+        item { SmallNote(L.tx("Approximate conversions for non-austenitic steels (ASTM E140). Tensile ≈ 3.45·HB."), Modifier.padding(12.dp)) }
     }
 }
 
@@ -171,31 +173,32 @@ fun HardnessPage(modifier: Modifier = Modifier) {
 
 @Composable
 fun SurfaceFinishPage(settings: AppSettings, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     var ra by remember { mutableDoubleStateOf(1.6) }
     LazyColumn(modifier) {
         item {
             Column(Modifier.padding(12.dp)) {
-                SectionCard("Convert") {
+                SectionCard(L.tx("Convert")) {
                     FieldRow {
-                        NumberField("Ra", ra, { v -> v?.let { ra = it } }, Quantity.ROUGHNESS, UnitSystem.METRIC, Modifier.weight(1f), min = 0.0)
-                        NumberField("Ra", ra, { v -> v?.let { ra = it } }, Quantity.ROUGHNESS, UnitSystem.IMPERIAL, Modifier.weight(1f), min = 0.0)
+                        NumberField(L.tx("Ra"), ra, { v -> v?.let { ra = it } }, Quantity.ROUGHNESS, UnitSystem.METRIC, Modifier.weight(1f), min = 0.0)
+                        NumberField(L.tx("Ra"), ra, { v -> v?.let { ra = it } }, Quantity.ROUGHNESS, UnitSystem.IMPERIAL, Modifier.weight(1f), min = 0.0)
                     }
-                    QuantityRow("Rq (RMS) ≈ 1.11·Ra", SurfaceFinish.rmsFromRa(ra), Quantity.ROUGHNESS, settings.units)
-                    QuantityRow("Rz ≈ 4–7·Ra (typical 5.5)", SurfaceFinish.rzEstimateFromRa(ra), Quantity.ROUGHNESS, settings.units)
+                    QuantityRow(L.tx("Rq (RMS) ≈ 1.11·Ra"), SurfaceFinish.rmsFromRa(ra), Quantity.ROUGHNESS, settings.units)
+                    QuantityRow(L.tx("Rz ≈ 4–7·Ra (typical 5.5)"), SurfaceFinish.rzEstimateFromRa(ra), Quantity.ROUGHNESS, settings.units)
                     val grade = SurfaceFinish.grades.minByOrNull { abs(kotlin.math.ln(it.raMicron / ra.coerceAtLeast(1e-6))) }
-                    ResultRow("Nearest ISO grade", grade?.grade ?: "—", emphasize = true)
+                    ResultRow(L.tx("Nearest ISO grade"), grade?.grade ?: "—", emphasize = true)
                 }
             }
         }
         val w = listOf(0.8f, 1f, 1f)
-        item { TableRow(listOf("Grade", "Ra µm", "Ra µin"), w, header = true) }
+        item { TableRow(listOf(L.tx("Grade"), "Ra µm", "Ra µin"), w, header = true) }
         items(SurfaceFinish.grades) { g -> TableRow(listOf(g.grade, formatNumber(g.raMicron, 3).trimEnd('0').trimEnd('.'), g.raMicroInch.toString()), w) }
         val w2 = listOf(1.6f, 1f, 1f)
         item {
             Spacer(Modifier.padding(6.dp))
-            TableRow(listOf("Process", "Ra min µm", "Ra max µm"), w2, header = true)
+            TableRow(listOf(L.tx("Process"), "Ra min µm", "Ra max µm"), w2, header = true)
         }
-        items(SurfaceFinish.processes) { p -> TableRow(listOf(p.process, formatNumber(p.raMin, 3).trimEnd('0').trimEnd('.'), formatNumber(p.raMax, 1)), w2) }
+        items(SurfaceFinish.processes) { p -> TableRow(listOf(L.tx(p.process), formatNumber(p.raMin, 3).trimEnd('0').trimEnd('.'), formatNumber(p.raMax, 1)), w2) }
     }
 }
 
@@ -203,6 +206,7 @@ fun SurfaceFinishPage(settings: AppSettings, modifier: Modifier = Modifier) {
 
 @Composable
 fun QuickCalculatorsPage(settings: AppSettings, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     val units = settings.units
     var vc by remember { mutableDoubleStateOf(100.0) }
     var dia by remember { mutableDoubleStateOf(10.0) }
@@ -222,36 +226,36 @@ fun QuickCalculatorsPage(settings: AppSettings, modifier: Modifier = Modifier) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        SectionCard("Spindle speed from cutting speed") {
+        SectionCard(L.tx("Spindle speed from cutting speed")) {
             FieldRow {
-                NumberField("Cutting speed", vc, { v -> v?.let { vc = it } }, Quantity.CUTTING_SPEED, units, Modifier.weight(1f), min = 0.0)
-                NumberField("Diameter", dia, { v -> v?.let { dia = it } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.01)
+                NumberField(L.tx("Cutting speed"), vc, { v -> v?.let { vc = it } }, Quantity.CUTTING_SPEED, units, Modifier.weight(1f), min = 0.0)
+                NumberField(L.tx("Diameter"), dia, { v -> v?.let { dia = it } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.01)
             }
-            QuantityRow("Spindle speed", CuttingBasics.rpm(vc, dia), Quantity.SPINDLE_SPEED, units, emphasize = true)
+            QuantityRow(L.tx("Spindle speed"), CuttingBasics.rpm(vc, dia), Quantity.SPINDLE_SPEED, units, emphasize = true)
         }
-        SectionCard("Cutting speed from spindle speed") {
+        SectionCard(L.tx("Cutting speed from spindle speed")) {
             FieldRow {
-                NumberField("Spindle", rpm, { v -> v?.let { rpm = it } }, Quantity.SPINDLE_SPEED, units, Modifier.weight(1f), decimals = 0, min = 0.0)
-                NumberField("Diameter", dia, { v -> v?.let { dia = it } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.01)
+                NumberField(L.tx("Spindle"), rpm, { v -> v?.let { rpm = it } }, Quantity.SPINDLE_SPEED, units, Modifier.weight(1f), decimals = 0, min = 0.0)
+                NumberField(L.tx("Diameter"), dia, { v -> v?.let { dia = it } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.01)
             }
-            QuantityRow("Cutting speed", CuttingBasics.cuttingSpeed(rpm, dia), Quantity.CUTTING_SPEED, units, emphasize = true)
+            QuantityRow(L.tx("Cutting speed"), CuttingBasics.cuttingSpeed(rpm, dia), Quantity.CUTTING_SPEED, units, emphasize = true)
         }
-        SectionCard("Feed ↔ chip load") {
+        SectionCard(L.tx("Feed ↔ chip load")) {
             FieldRow {
-                NumberField("Chip load fz", fz, { v -> v?.let { fz = it } }, Quantity.CHIP_LOAD, units, Modifier.weight(1f), min = 0.0)
-                IntField("Flutes", flutes, { flutes = it }, Modifier.weight(1f))
+                NumberField(L.tx("Chip load fz"), fz, { v -> v?.let { fz = it } }, Quantity.CHIP_LOAD, units, Modifier.weight(1f), min = 0.0)
+                IntField(L.tx("Flutes"), flutes, { flutes = it }, Modifier.weight(1f))
             }
-            QuantityRow("Feed at ${formatNumber(rpm, 0)} rpm", fz * flutes * rpm, Quantity.FEED_RATE, units, emphasize = true)
-            NumberField("Feed rate", feed, { v -> v?.let { feed = it } }, Quantity.FEED_RATE, units, Modifier.fillMaxWidth(), min = 0.0)
-            QuantityRow("Chip load at ${formatNumber(rpm, 0)} rpm", if (rpm > 0) feed / (flutes * rpm) else 0.0, Quantity.CHIP_LOAD, units, emphasize = true)
+            QuantityRow(L.tx("Feed at {0}", Quantity.SPINDLE_SPEED.formatWithUnit(rpm, units, lang = L)), fz * flutes * rpm, Quantity.FEED_RATE, units, emphasize = true)
+            NumberField(L.tx("Feed rate"), feed, { v -> v?.let { feed = it } }, Quantity.FEED_RATE, units, Modifier.fillMaxWidth(), min = 0.0)
+            QuantityRow(L.tx("Chip load at {0}", Quantity.SPINDLE_SPEED.formatWithUnit(rpm, units, lang = L)), if (rpm > 0) feed / (flutes * rpm) else 0.0, Quantity.CHIP_LOAD, units, emphasize = true)
         }
-        SectionCard("Unit converter") {
-            Dropdown("Quantity", convertible, conv, { conv = it }, Modifier.fillMaxWidth(), optionLabel = { "${it.metricLabel} ↔ ${it.imperialLabel}" })
+        SectionCard(L.tx("Unit converter")) {
+            Dropdown(L.tx("Quantity"), convertible, conv, { conv = it }, Modifier.fillMaxWidth(), optionLabel = { "${it.metricLabel} ↔ ${it.imperialLabel}" })
             FieldRow {
-                NumberField("Metric", base, { v -> v?.let { base = it } }, conv, UnitSystem.METRIC, Modifier.weight(1f))
-                NumberField("Imperial", base, { v -> v?.let { base = it } }, conv, UnitSystem.IMPERIAL, Modifier.weight(1f))
+                NumberField(L.tx("Metric"), base, { v -> v?.let { base = it } }, conv, UnitSystem.METRIC, Modifier.weight(1f))
+                NumberField(L.tx("Imperial"), base, { v -> v?.let { base = it } }, conv, UnitSystem.IMPERIAL, Modifier.weight(1f))
             }
-            SmallNote("Edit either side. Inch lengths accept fractions such as 1-1/4.")
+            SmallNote(L.tx("Edit either side. Inch lengths accept fractions such as 1-1/4."))
         }
     }
 }
@@ -260,6 +264,7 @@ fun QuickCalculatorsPage(settings: AppSettings, modifier: Modifier = Modifier) {
 
 @Composable
 fun MaterialDataPage(settings: AppSettings, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     val units = settings.units
     LazyColumn(modifier.padding(horizontal = 12.dp)) {
         items(MaterialLibrary.all, key = { it.id }) { m ->
@@ -268,29 +273,31 @@ fun MaterialDataPage(settings: AppSettings, modifier: Modifier = Modifier) {
                     IsoBadge(m.group)
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text(m.name, style = MaterialTheme.typography.titleSmall)
-                        SmallNote("${m.examples} · ${m.hardness}")
+                        Text(L.tx(m.name), style = MaterialTheme.typography.titleSmall)
+                        SmallNote("${m.examples} · ${L.tx(m.hardness)}")
                     }
                 }
                 val vcU = { v: Double -> Quantity.CUTTING_SPEED.formatWithUnit(v, units) }
                 Text(
-                    "kc1.1 = ${formatNumber(m.kc11, 0)} N/mm²   mc = ${formatNumber(m.mc, 2)}   friction ≈ ${formatNumber(m.frictionAngle, 0)}°",
+                    "kc1.1 = ${formatNumber(m.kc11, 0)} N/mm²   mc = ${formatNumber(m.mc, 2)}   ${L.tx("friction")} ≈ ${formatNumber(m.frictionAngle, 0)}°",
                     style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace,
                 )
                 Text(
-                    "End mill: carbide ${vcU(m.vcCarbide)}, HSS ${if (m.vcHss > 0) vcU(m.vcHss) else "n/a"}, hmax ≈ ${formatNumber(m.fzPerD, 4)}·D",
+                    L.tx("End mill: carbide {0}, HSS {1}, hmax ≈ {2}·D", vcU(m.vcCarbide), if (m.vcHss > 0) vcU(m.vcHss) else L.tx("n/a"), formatNumber(m.fzPerD, 4)),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Text(
-                    "Drill fn ≈ ${formatNumber(m.drillFnPerD, 3)}·D · Tap ${if (m.tapVc > 0) vcU(m.tapVc) else "thread mill"} · Turning ${vcU(m.turnVc)}" +
-                        (if (m.machinability > 0) " · Machinability ${m.machinability}%" else ""),
+                    L.tx(
+                        "Drill fn ≈ {0}·D · Tap {1} · Turning {2}", formatNumber(m.drillFnPerD, 3),
+                        if (m.tapVc > 0) vcU(m.tapVc) else L.tx("thread mill"), vcU(m.turnVc),
+                    ) + (if (m.machinability > 0) " · " + L.tx("Machinability {0}%", m.machinability) else ""),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                if (m.notes.isNotBlank()) SmallNote(m.notes)
+                if (m.notes.isNotBlank()) SmallNote(L.tx(m.notes))
             }
             HorizontalDivider()
         }
-        item { SmallNote("Speeds: uncoated tools, base values before coating/engagement corrections. kc1.1 referenced to 0° rake.", Modifier.padding(vertical = 12.dp)) }
+        item { SmallNote(L.tx("Speeds: uncoated tools, base values before coating/engagement corrections. kc1.1 referenced to 0° rake."), Modifier.padding(vertical = 12.dp)) }
     }
 }
 
@@ -298,11 +305,12 @@ fun MaterialDataPage(settings: AppSettings, modifier: Modifier = Modifier) {
 
 @Composable
 fun FormulasPage(modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     LazyColumn(modifier.padding(horizontal = 12.dp)) {
-        item { Text("Formulas", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 12.dp)) }
+        item { Text(L.tx("Formulas"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 12.dp)) }
         items(Citations.formulas) { f ->
             Column(Modifier.padding(vertical = 8.dp)) {
-                Text(f.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text(L.tx(f.title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Text(
                     f.formula,
                     fontFamily = FontFamily.Monospace,
@@ -314,15 +322,15 @@ fun FormulasPage(modifier: Modifier = Modifier) {
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(8.dp),
                 )
-                Text(f.notes, style = MaterialTheme.typography.bodySmall)
-                SmallNote("Refs: " + f.refs.joinToString(", "))
+                Text(L.tx(f.notes), style = MaterialTheme.typography.bodySmall)
+                SmallNote(L.tx("Refs:") + " " + f.refs.joinToString(", "))
             }
         }
-        item { Text("References", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 12.dp)) }
+        item { Text(L.tx("References"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 12.dp)) }
         items(Citations.all) { c ->
             Column(Modifier.padding(vertical = 6.dp)) {
                 Text("[${c.key}] ${c.text}", style = MaterialTheme.typography.bodySmall)
-                SmallNote("Used for: ${c.usedFor}")
+                SmallNote(L.tx("Used for: {0}", L.tx(c.usedFor)))
             }
             HorizontalDivider()
         }

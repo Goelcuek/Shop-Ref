@@ -1,5 +1,6 @@
 package com.shopref.app.ui.components
 
+import com.shopref.app.ui.LocalLang
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import com.shopref.core.units.UnitSystem
 
 @Composable
 fun SectionCard(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    val L = LocalLang.current
     ElevatedCard(modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
@@ -48,11 +50,13 @@ fun SectionCard(title: String, modifier: Modifier = Modifier, content: @Composab
 /** Two fields side by side. */
 @Composable
 fun FieldRow(content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
+    val L = LocalLang.current
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), content = content)
 }
 
 @Composable
 fun ResultRow(label: String, value: String, modifier: Modifier = Modifier, emphasize: Boolean = false, valueColor: Color? = null) {
+    val L = LocalLang.current
     Row(modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
         Text(
@@ -67,7 +71,8 @@ fun ResultRow(label: String, value: String, modifier: Modifier = Modifier, empha
 
 @Composable
 fun QuantityRow(label: String, base: Double, quantity: Quantity, units: UnitSystem, emphasize: Boolean = false, decimals: Int? = null, valueColor: Color? = null) {
-    ResultRow(label, quantity.formatWithUnit(base, units, decimals ?: quantity.decimals(units)), emphasize = emphasize, valueColor = valueColor)
+    val L = LocalLang.current
+    ResultRow(label, quantity.formatWithUnit(base, units, decimals ?: quantity.decimals(units), L), emphasize = emphasize, valueColor = valueColor)
 }
 
 @Composable
@@ -75,6 +80,7 @@ fun ThinDivider() = HorizontalDivider(Modifier.padding(vertical = 4.dp))
 
 @Composable
 fun AdviceList(advice: List<Advice>, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     if (advice.isEmpty()) return
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         advice.sortedByDescending { it.level.ordinal }.forEach { AdviceItem(it) }
@@ -83,6 +89,7 @@ fun AdviceList(advice: List<Advice>, modifier: Modifier = Modifier) {
 
 @Composable
 fun AdviceItem(advice: Advice) {
+    val L = LocalLang.current
     val (bg, fg) = when (advice.level) {
         Advice.Level.DANGER -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
         Advice.Level.CAUTION -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
@@ -109,6 +116,7 @@ fun AdviceItem(advice: Advice) {
 
 @Composable
 fun IsoBadge(group: IsoGroup, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     val color = Color(group.color)
     Box(
         modifier
@@ -128,6 +136,7 @@ fun IsoBadge(group: IsoGroup, modifier: Modifier = Modifier) {
 
 @Composable
 fun SmallNote(text: String, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = modifier)
 }
 
@@ -162,6 +171,7 @@ fun summaryWarnColor(ratio: Double): Color? = when {
  */
 @Composable
 fun SummaryBar(items: List<SummaryItem>, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         shadowElevation = 4.dp,
@@ -180,6 +190,7 @@ fun SummaryBar(items: List<SummaryItem>, modifier: Modifier = Modifier) {
 
 @Composable
 private fun SummaryCell(item: SummaryItem, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     val fg = MaterialTheme.colorScheme.onPrimaryContainer
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(item.label, style = MaterialTheme.typography.labelSmall, color = fg.copy(alpha = 0.75f), maxLines = 1)
@@ -193,7 +204,7 @@ private fun SummaryCell(item: SummaryItem, modifier: Modifier = Modifier) {
             )
             if (item.unit.isNotEmpty()) {
                 Spacer(Modifier.width(3.dp))
-                Text(item.unit, style = MaterialTheme.typography.labelSmall, color = fg, maxLines = 1, modifier = Modifier.padding(bottom = 2.dp))
+                Text(L.tx(item.unit), style = MaterialTheme.typography.labelSmall, color = fg, maxLines = 1, modifier = Modifier.padding(bottom = 2.dp))
             }
         }
     }

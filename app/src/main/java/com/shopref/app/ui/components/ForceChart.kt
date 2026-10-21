@@ -1,5 +1,6 @@
 package com.shopref.app.ui.components
 
+import com.shopref.app.ui.LocalLang
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +34,7 @@ import kotlin.math.max
 /** Cutting forces over one cutter revolution: Fx (feed), Fy (normal), resultant |Fxy| and Fz. */
 @Composable
 fun ForceChart(samples: List<MillingForceModel.Sample>, units: UnitSystem, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     if (samples.isEmpty()) return
     val cResultant = MaterialTheme.colorScheme.primary
     val cFx = Color(0xFFE07B00)
@@ -48,8 +50,8 @@ fun ForceChart(samples: List<MillingForceModel.Sample>, units: UnitSystem, modif
 
     Column(modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            SmallNote("+" + Quantity.FORCE.formatWithUnit(top, units))
-            SmallNote("one revolution →")
+            SmallNote("+" + Quantity.FORCE.formatWithUnit(top, units, lang = L))
+            SmallNote(L.tx("one revolution →"))
         }
         Canvas(
             Modifier
@@ -90,19 +92,20 @@ fun ForceChart(samples: List<MillingForceModel.Sample>, units: UnitSystem, modif
             series(cFy) { it.fy }
             series(cResultant) { it.fxy }
         }
-        if (bottom < 0) SmallNote(Quantity.FORCE.formatWithUnit(bottom, units))
+        if (bottom < 0) SmallNote(Quantity.FORCE.formatWithUnit(bottom, units, lang = L))
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Legend(cResultant, "|Fxy|")
-            Legend(cFx, "Fx feed")
-            Legend(cFy, "Fy normal")
-            Legend(cFz, "Fz axial")
+            Legend(cFx, L.tx("Fx feed"))
+            Legend(cFy, L.tx("Fy normal"))
+            Legend(cFz, L.tx("Fz axial"))
         }
     }
 }
 
 @Composable
 private fun Legend(color: Color, label: String) {
+    val L = LocalLang.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(10.dp).clip(CircleShape).background(color))
         Spacer(Modifier.width(4.dp))

@@ -1,5 +1,6 @@
 package com.shopref.app.ui.reference
 
+import com.shopref.app.ui.LocalLang
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,6 +38,7 @@ import com.shopref.core.units.formatNumber
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun <T> ChipRow(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
+    val L = LocalLang.current
     Row(
         Modifier
             .horizontalScroll(rememberScrollState())
@@ -49,23 +51,23 @@ private fun <T> ChipRow(options: List<T>, selected: T, label: (T) -> String, onS
 
 @Composable
 fun DrillSizesPage(settings: AppSettings, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     val units = settings.units
     var series by rememberSaveable { mutableStateOf<DrillSeries?>(null) }
     var target by remember { mutableStateOf<Double?>(null) }
     val list = if (series == null) DrillSizes.all else DrillSizes.all.filter { it.series == series }
     val nearest = target?.let { t -> if (list.isEmpty()) null else DrillSizes.nearest(t, list) }
     Column(modifier) {
-        ChipRow(listOf<DrillSeries?>(null) + DrillSeries.entries, series, { it?.label ?: "All" }, { series = it })
-        NumberField(
-            "Find nearest drill to…", target, { target = it }, Quantity.LENGTH, units,
+        ChipRow(listOf<DrillSeries?>(null) + DrillSeries.entries, series, { L.tx(it?.label ?: "All") }, { series = it })
+        NumberField(L.tx("Find nearest drill to…"), target, { target = it }, Quantity.LENGTH, units,
             Modifier.fillMaxWidth().padding(horizontal = 12.dp), allowAuto = true,
         )
         LazyColumn(Modifier.fillMaxWidth().padding(top = 8.dp)) {
             val weights = listOf(1.2f, 1f, 1f, 1.2f)
-            item { TableRow(listOf("Drill", "mm", "inch", "Series"), weights, header = true) }
+            item { TableRow(listOf(L.tx("Drill"), "mm", "inch", L.tx("Series")), weights, header = true) }
             items(list) { d ->
                 TableRow(
-                    listOf(d.label, formatNumber(d.mm, 3), formatNumber(d.inch, 4), d.series.label),
+                    listOf(d.label, formatNumber(d.mm, 3), formatNumber(d.inch, 4), L.tx(d.series.label)),
                     weights, highlight = d == nearest,
                 )
             }
@@ -77,22 +79,23 @@ private enum class ScrewSystem(val label: String) { METRIC("Metric (ISO)"), INCH
 
 @Composable
 fun ClearancePage(settings: AppSettings, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     val units = settings.units
     var system by rememberSaveable { mutableStateOf(ScrewSystem.METRIC) }
     val u = Quantity.LENGTH.label(units)
     Column(modifier) {
-        ChipRow(ScrewSystem.entries, system, { it.label }, { system = it })
+        ChipRow(ScrewSystem.entries, system, { L.tx(it.label) }, { system = it })
         LazyColumn(Modifier.fillMaxWidth()) {
             if (system == ScrewSystem.METRIC) {
                 val w = listOf(1f, 1f, 1f, 1f)
-                item { TableRow(listOf("Screw", "Fine ($u)", "Medium", "Coarse"), w, header = true) }
+                item { TableRow(listOf(L.tx("Screw"), L.tx("Fine") + " ($u)", L.tx("Medium"), L.tx("Coarse")), w, header = true) }
                 items(Holes.metricClearance) { h ->
                     TableRow(listOf(h.size, len(h.close, units), len(h.normal, units), h.loose?.let { len(it, units) } ?: "—"), w)
                 }
-                item { SmallNote("ISO 273 series: fine (close fit), medium (normal), coarse (loose).", Modifier.padding(12.dp)) }
+                item { SmallNote(L.tx("ISO 273 series: fine (close fit), medium (normal), coarse (loose)."), Modifier.padding(12.dp)) }
             } else {
                 val w = listOf(0.8f, 1.3f, 1.3f)
-                item { TableRow(listOf("Screw", "Close fit ($u)", "Free fit"), w, header = true) }
+                item { TableRow(listOf(L.tx("Screw"), L.tx("Close fit") + " ($u)", L.tx("Free fit")), w, header = true) }
                 items(Holes.inchClearance) { h ->
                     TableRow(listOf(h.size, "${h.closeLabel}\n${len(h.close, units)}", "${h.normalLabel}\n${len(h.normal, units)}"), w)
                 }
@@ -103,6 +106,7 @@ fun ClearancePage(settings: AppSettings, modifier: Modifier = Modifier) {
 
 @Composable
 fun CounterborePage(settings: AppSettings, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     val units = settings.units
     var system by rememberSaveable { mutableStateOf(ScrewSystem.METRIC) }
     var cskDia by remember { mutableDoubleStateOf(12.0) }
@@ -110,13 +114,13 @@ fun CounterborePage(settings: AppSettings, modifier: Modifier = Modifier) {
     var cskHole by remember { mutableDoubleStateOf(0.0) }
     val u = Quantity.LENGTH.label(units)
     Column(modifier) {
-        ChipRow(ScrewSystem.entries, system, { it.label }, { system = it })
+        ChipRow(ScrewSystem.entries, system, { L.tx(it.label) }, { system = it })
         LazyColumn(Modifier.fillMaxWidth()) {
             val cb = if (system == ScrewSystem.METRIC) Holes.metricCounterbores else Holes.inchCounterbores
             val w = listOf(0.8f, 1f, 1f, 1f, 1f)
             item {
-                Text("Socket head cap screws (${u})", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(12.dp))
-                TableRow(listOf("Screw", "Head Ø", "C'bore Ø", "Depth", "Thru hole"), w, header = true)
+                Text(L.tx("Socket head cap screws ({0})", u), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(12.dp))
+                TableRow(listOf(L.tx("Screw"), L.tx("Head Ø"), L.tx("C'bore Ø"), L.tx("Depth"), L.tx("Thru hole")), w, header = true)
             }
             items(cb) { c ->
                 TableRow(listOf(c.size, len(c.headDiameter, units), len(c.cboreDiameter, units), len(c.cboreDepth, units), len(c.clearance, units)), w)
@@ -124,23 +128,23 @@ fun CounterborePage(settings: AppSettings, modifier: Modifier = Modifier) {
             val cs = if (system == ScrewSystem.METRIC) Holes.metricCountersinks else Holes.inchCountersinks
             val w2 = listOf(0.8f, 1f, 0.7f, 1f, 1f)
             item {
-                Text("Flat (countersunk) head screws (${u})", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(12.dp))
-                TableRow(listOf("Screw", "Head Ø", "Angle", "Thru hole", "Spot depth*"), w2, header = true)
+                Text(L.tx("Flat (countersunk) head screws ({0})", u), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(12.dp))
+                TableRow(listOf(L.tx("Screw"), L.tx("Head Ø"), L.tx("Angle"), L.tx("Thru hole"), L.tx("Spot depth*")), w2, header = true)
             }
             items(cs) { c ->
                 val depth = Holes.countersinkDepth(c.headDiameter + if (system == ScrewSystem.METRIC) 0.2 else 0.005 * 25.4, c.angle)
                 TableRow(listOf(c.size, len(c.headDiameter, units), formatNumber(c.angle, 0) + "°", len(c.clearance, units), len(depth, units)), w2)
             }
             item {
-                SmallNote("*Plunge depth of a sharp-pointed countersink/spot drill of the same angle for a head slightly below flush.", Modifier.padding(12.dp))
+                SmallNote(L.tx("*Plunge depth of a sharp-pointed countersink/spot drill of the same angle for a head slightly below flush."), Modifier.padding(12.dp))
                 Column(Modifier.padding(12.dp)) {
-                    SectionCard("Countersink calculator") {
+                    SectionCard(L.tx("Countersink calculator")) {
                         FieldRow {
-                            NumberField("Countersink Ø", cskDia, { v -> v?.let { cskDia = it } }, Quantity.LENGTH, units, Modifier.weight(1f))
-                            NumberField("Angle", cskAngle, { v -> v?.let { cskAngle = it.coerceIn(20.0, 179.0) } }, Quantity.ANGLE, units, Modifier.weight(1f))
+                            NumberField(L.tx("Countersink Ø"), cskDia, { v -> v?.let { cskDia = it } }, Quantity.LENGTH, units, Modifier.weight(1f))
+                            NumberField(L.tx("Angle"), cskAngle, { v -> v?.let { cskAngle = it.coerceIn(20.0, 179.0) } }, Quantity.ANGLE, units, Modifier.weight(1f))
                         }
-                        NumberField("Tool tip Ø (0 = sharp)", cskHole, { v -> cskHole = v ?: 0.0 }, Quantity.LENGTH, units, Modifier.fillMaxWidth())
-                        QuantityRow("Plunge depth", Holes.countersinkDepth(cskDia, cskAngle, cskHole), Quantity.LENGTH, units, emphasize = true)
+                        NumberField(L.tx("Tool tip Ø (0 = sharp)"), cskHole, { v -> cskHole = v ?: 0.0 }, Quantity.LENGTH, units, Modifier.fillMaxWidth())
+                        QuantityRow(L.tx("Plunge depth"), Holes.countersinkDepth(cskDia, cskAngle, cskHole), Quantity.LENGTH, units, emphasize = true)
                     }
                 }
             }

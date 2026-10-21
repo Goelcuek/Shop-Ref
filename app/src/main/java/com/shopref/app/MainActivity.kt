@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
         val store = SharedPrefsStore(getSharedPreferences("shopref", Context.MODE_PRIVATE))
         setContent {
             ShopRefTheme {
-                ShopRefApp(store)
+                ShopRefApp(store, java.util.Locale.getDefault().language)
             }
         }
     }

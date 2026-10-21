@@ -1,5 +1,6 @@
 package com.shopref.app.ui.components
 
+import com.shopref.app.ui.LocalLang
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,6 +68,7 @@ fun NumberField(
     allowAuto: Boolean = autoValue != null,
     min: Double? = null,
 ) {
+    val L = LocalLang.current
     fun display(v: Double?): String = v?.let { formatEditable(quantity.toDisplay(it, units), decimals) } ?: ""
 
     var text by remember(units, quantity) { mutableStateOf(display(value)) }
@@ -87,7 +89,7 @@ fun NumberField(
 
     val parsed = parseNumber(text, allowFraction = units == UnitSystem.IMPERIAL && quantity == Quantity.LENGTH)
     val invalid = text.isNotBlank() && (parsed == null || (min != null && quantity.fromDisplay(parsed, units) < min))
-    val unitLabel = quantity.label(units)
+    val unitLabel = quantity.label(units, L)
 
     OutlinedTextField(
         value = text,
@@ -111,7 +113,7 @@ fun NumberField(
         },
         label = { Text(label, maxLines = 1) },
         placeholder = if (autoValue != null) {
-            { Text("auto " + formatEditable(quantity.toDisplay(autoValue, units), decimals)) }
+            { Text(L.tx("auto") + " " + formatEditable(quantity.toDisplay(autoValue, units), decimals)) }
         } else null,
         suffix = if (unitLabel.isNotEmpty()) {
             { Text(unitLabel, style = MaterialTheme.typography.bodySmall) }
@@ -125,6 +127,7 @@ fun NumberField(
 
 @Composable
 fun IntField(label: String, value: Int, onValueChange: (Int) -> Unit, modifier: Modifier = Modifier, range: IntRange = 1..99) {
+    val L = LocalLang.current
     var text by remember { mutableStateOf(value.toString()) }
     LaunchedEffect(value) {
         if (text.toIntOrNull() != value) text = value.toString()
@@ -154,6 +157,7 @@ fun <T> Dropdown(
     optionLabel: (T) -> String = { it.toString() },
     optionDetail: ((T) -> String?)? = null,
 ) {
+    val L = LocalLang.current
     var expanded by remember { mutableStateOf(false) }
     Box(modifier) {
         OutlinedTextField(
@@ -195,6 +199,7 @@ fun <T> Dropdown(
 
 @Composable
 fun PercentSlider(label: String, percent: Double, onChange: (Double) -> Unit, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
@@ -216,6 +221,7 @@ fun PercentSlider(label: String, percent: Double, onChange: (Double) -> Unit, mo
 
 @Composable
 fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, detail: String? = null) {
+    val L = LocalLang.current
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.bodyLarge)

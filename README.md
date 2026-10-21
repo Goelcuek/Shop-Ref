@@ -81,7 +81,7 @@ To sign releases with your own key, set `SHOPREF_KEYSTORE_PATH`, `SHOPREF_KEYSTO
 Requirements: JDK 17+, Android SDK (API 35). Android Studio Ladybug or newer opens the project directly.
 
 ```bash
-./gradlew -p core test          # calculation engine tests (no Android SDK needed)
+./gradlew -p core jvmTest       # calculation engine tests (no Android SDK needed)
 ./gradlew :app:assembleDebug    # APK in app/build/outputs/apk/debug/
 ./gradlew :app:connectedDebugAndroidTest   # UI smoke tests on a device/emulator
 ```

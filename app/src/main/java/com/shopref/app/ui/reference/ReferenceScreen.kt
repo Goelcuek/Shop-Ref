@@ -1,5 +1,6 @@
 package com.shopref.app.ui.reference
 
+import com.shopref.app.ui.LocalLang
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ enum class ReferencePage(val title: String, val description: String) {
 
 @Composable
 fun ReferenceScreen(settings: AppSettings, page: ReferencePage?, onOpen: (ReferencePage) -> Unit, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     when (page) {
         null -> ReferenceIndex(onOpen, modifier)
         ReferencePage.TAP_DRILLS -> TapDrillChartPage(settings, modifier)
@@ -57,6 +59,7 @@ fun ReferenceScreen(settings: AppSettings, page: ReferencePage?, onOpen: (Refere
 
 @Composable
 private fun ReferenceIndex(onOpen: (ReferencePage) -> Unit, modifier: Modifier) {
+    val L = LocalLang.current
     LazyColumn(modifier) {
         items(ReferencePage.entries) { p ->
             Row(
@@ -67,8 +70,8 @@ private fun ReferenceIndex(onOpen: (ReferencePage) -> Unit, modifier: Modifier) 
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(p.title, style = MaterialTheme.typography.titleMedium)
-                    Text(p.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(L.tx(p.title), style = MaterialTheme.typography.titleMedium)
+                    Text(L.tx(p.description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
             }
@@ -80,6 +83,7 @@ private fun ReferenceIndex(onOpen: (ReferencePage) -> Unit, modifier: Modifier) 
 /** One row of a simple data table. [weights] sets relative column widths. */
 @Composable
 fun TableRow(cells: List<String>, weights: List<Float>, header: Boolean = false, highlight: Boolean = false) {
+    val L = LocalLang.current
     val bg = when {
         header -> MaterialTheme.colorScheme.primaryContainer
         highlight -> MaterialTheme.colorScheme.secondaryContainer

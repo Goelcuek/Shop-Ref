@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,10 +48,18 @@ enum class Tab(val label: String, val title: String, val icon: ImageVector) {
     REFERENCE("Reference", "Reference", AppIcons.Book),
 }
 
+@Composable
+fun ShopRefApp(store: KeyValueStore, systemLanguage: String = "en") {
+    val settings = remember { AppSettings(store, systemLanguage) }
+    CompositionLocalProvider(LocalLang provides settings.lang) {
+        AppScaffold(store, settings)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ShopRefApp(store: KeyValueStore) {
-    val settings = remember { AppSettings(store) }
+private fun AppScaffold(store: KeyValueStore, settings: AppSettings) {
+    val L = LocalLang.current
     val session = remember { Session(store) }
     val milling = remember { MillingState() }
     val drilling = remember { DrillingState() }
@@ -66,9 +75,9 @@ fun ShopRefApp(store: KeyValueStore) {
 
     val canGoBack = showSettings || (tab == Tab.REFERENCE && refPage != null)
     val title = when {
-        showSettings -> "Settings"
-        tab == Tab.REFERENCE && refPage != null -> refPage!!.title
-        else -> tab.title
+        showSettings -> L.tx("Settings")
+        tab == Tab.REFERENCE && refPage != null -> L.tx(refPage!!.title)
+        else -> L.tx(tab.title)
     }
 
     Scaffold(
@@ -78,7 +87,7 @@ fun ShopRefApp(store: KeyValueStore) {
                 navigationIcon = {
                     if (canGoBack) {
                         IconButton(onClick = { if (showSettings) showSettings = false else refPage = null }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = L.tx("Back"))
                         }
                     }
                 },
@@ -93,7 +102,7 @@ fun ShopRefApp(store: KeyValueStore) {
                             Text(if (settings.units == UnitSystem.METRIC) "mm" else "inch")
                         }
                         IconButton(onClick = { showSettings = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                            Icon(Icons.Default.Settings, contentDescription = L.tx("Settings"))
                         }
                     }
                 },
@@ -109,8 +118,8 @@ fun ShopRefApp(store: KeyValueStore) {
                                 if (tab == t && t == Tab.REFERENCE) refPage = null
                                 tab = t
                             },
-                            icon = { Icon(t.icon, contentDescription = t.label) },
-                            label = { Text(t.label) },
+                            icon = { Icon(t.icon, contentDescription = L.tx(t.label)) },
+                            label = { Text(L.tx(t.label)) },
                             modifier = Modifier.testTag("tab_${t.name}"),
                         )
                     }

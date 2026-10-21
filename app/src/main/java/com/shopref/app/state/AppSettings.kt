@@ -3,6 +3,7 @@ package com.shopref.app.state
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.shopref.core.i18n.Lang
 import com.shopref.core.tooling.ChipLoadLevel
 import com.shopref.core.tooling.Machine
 import com.shopref.core.tooling.Rigidity
@@ -20,8 +21,29 @@ class InMemoryStore : KeyValueStore {
     override fun putString(key: String, value: String) { map[key] = value }
 }
 
-/** App-wide settings: unit system and the milling / turning machine profiles. */
-class AppSettings(private val store: KeyValueStore) {
+/** UI language choice; [SYSTEM] follows the device language. */
+enum class LanguagePref(val label: String) { SYSTEM("System"), EN("English"), TR("Türkçe") }
+
+/** App-wide settings: language, unit system and the milling / turning machine profiles. */
+class AppSettings(private val store: KeyValueStore, private val systemLanguage: String = "en") {
+    var languagePref by mutableStateOf(
+        store.getString("language")?.let { runCatching { LanguagePref.valueOf(it) }.getOrNull() } ?: LanguagePref.SYSTEM,
+    )
+        private set
+
+    /** Effective language after resolving [LanguagePref.SYSTEM]. */
+    val lang: Lang
+        get() = when (languagePref) {
+            LanguagePref.SYSTEM -> Lang.fromCode(systemLanguage)
+            LanguagePref.EN -> Lang.EN
+            LanguagePref.TR -> Lang.TR
+        }
+
+    fun updateLanguage(value: LanguagePref) {
+        languagePref = value
+        store.putString("language", value.name)
+    }
+
     var units by mutableStateOf(
         store.getString("units")?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() } ?: UnitSystem.METRIC,
     )

@@ -1,5 +1,6 @@
 package com.shopref.app.ui.components
 
+import com.shopref.app.ui.LocalLang
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -45,17 +46,18 @@ import com.shopref.core.material.MaterialLibrary
 /** Card showing the selected workpiece material; tap to change. */
 @Composable
 fun MaterialSelector(material: Material, onSelect: (Material) -> Unit, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     var open by remember { mutableStateOf(false) }
     ElevatedCard(modifier.fillMaxWidth().clickable { open = true }) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             IsoBadge(material.group)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("Workpiece material", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(material.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("${material.examples} · ${material.hardness}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(L.tx("Workpiece material"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(L.tx(material.name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("${material.examples} · ${L.tx(material.hardness)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Default.Search, contentDescription = "Change material")
+            Icon(Icons.Default.Search, contentDescription = L.tx("Change material"))
         }
     }
     if (open) {
@@ -73,20 +75,21 @@ fun MaterialSelector(material: Material, onSelect: (Material) -> Unit, modifier:
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MaterialPickerDialog(current: Material, onDismiss: () -> Unit, onSelect: (Material) -> Unit) {
+    val L = LocalLang.current
     var query by remember { mutableStateOf("") }
     var group by remember { mutableStateOf<IsoGroup?>(null) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize().padding(12.dp), shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Select material", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close") }
+                    Text(L.tx("Select material"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = L.tx("Close")) }
                 }
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    placeholder = { Text("Search: 6061, 304, Inconel, PEEK…") },
+                    placeholder = { Text(L.tx("Search: 6061, 304, Inconel, PEEK…")) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("materialSearch"),
                 )
@@ -94,16 +97,16 @@ fun MaterialPickerDialog(current: Material, onDismiss: () -> Unit, onSelect: (Ma
                     Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    FilterChip(selected = group == null, onClick = { group = null }, label = { Text("All") })
+                    FilterChip(selected = group == null, onClick = { group = null }, label = { Text(L.tx("All")) })
                     IsoGroup.entries.forEach { g ->
                         FilterChip(
                             selected = group == g,
                             onClick = { group = if (group == g) null else g },
-                            label = { Text("${g.label} · ${g.description}") },
+                            label = { Text("${g.label} · ${L.tx(g.description)}") },
                         )
                     }
                 }
-                val results = MaterialLibrary.search(query, group)
+                val results = MaterialLibrary.search(query, group, L)
                 LazyColumn(Modifier.weight(1f)) {
                     items(results, key = { it.id }) { m ->
                         Row(
@@ -117,11 +120,11 @@ fun MaterialPickerDialog(current: Material, onDismiss: () -> Unit, onSelect: (Ma
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    m.name,
+                                    L.tx(m.name),
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = if (m.id == current.id) FontWeight.Bold else FontWeight.Normal,
                                 )
-                                Text("${m.examples} · ${m.hardness}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("${m.examples} · ${L.tx(m.hardness)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         HorizontalDivider()

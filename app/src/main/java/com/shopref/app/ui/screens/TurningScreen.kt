@@ -1,5 +1,6 @@
 package com.shopref.app.ui.screens
 
+import com.shopref.app.ui.LocalLang
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,19 +45,20 @@ private val noseRadii = listOf(0.2, 0.4, 0.8, 1.2, 1.6, 2.4)
 
 @Composable
 fun TurningScreen(settings: AppSettings, session: Session, state: TurningState, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     val units = settings.units
-    val input = state.input.copy(material = session.material, machine = settings.lathe, units = units)
+    val input = state.input.copy(material = session.material, machine = settings.lathe, units = units, lang = L)
     val result = remember(input) { TurningCalculator.calculate(input) }
 
     Column(modifier) {
         SummaryBar(
             listOf(
-                summaryOf("Spindle", result.rpm, Quantity.SPINDLE_SPEED, units),
-                summaryOf("Feed", result.feedRate, Quantity.FEED_RATE, units),
-                summaryOf("Power", result.powerKw, Quantity.POWER, units, summaryWarnColor(result.powerKw / result.availablePowerKw)),
-                summaryOf("Speed", result.vc, Quantity.CUTTING_SPEED, units),
-                summaryOf("Feed/rev", result.feed, Quantity.FEED_PER_REV, units),
-                summaryOf("Ra", result.raMicron, Quantity.ROUGHNESS, units),
+                summaryOf(L.tx("Spindle"), result.rpm, Quantity.SPINDLE_SPEED, units),
+                summaryOf(L.tx("Feed"), result.feedRate, Quantity.FEED_RATE, units),
+                summaryOf(L.tx("Power"), result.powerKw, Quantity.POWER, units, summaryWarnColor(result.powerKw / result.availablePowerKw)),
+                summaryOf(L.tx("Speed"), result.vc, Quantity.CUTTING_SPEED, units),
+                summaryOf(L.tx("Feed/rev"), result.feed, Quantity.FEED_PER_REV, units),
+                summaryOf(L.tx("Ra"), result.raMicron, Quantity.ROUGHNESS, units),
             ),
         )
         Column(
@@ -68,76 +70,76 @@ fun TurningScreen(settings: AppSettings, session: Session, state: TurningState, 
         ) {
             MaterialSelector(session.material, onSelect = session::selectMaterial)
 
-            SectionCard("Insert & operation") {
+            SectionCard(L.tx("Insert & operation")) {
                 FieldRow {
-                    Dropdown("Insert grade", InsertGrade.entries, input.grade, { g -> state.update { it.copy(grade = g) } }, Modifier.weight(1f), optionLabel = { it.label })
-                    Dropdown("Operation", TurnOperation.entries, input.operation, { o -> state.update { it.copy(operation = o, ap = null, feed = null) } }, Modifier.weight(1f), optionLabel = { it.label })
+                    Dropdown(L.tx("Insert grade"), InsertGrade.entries, input.grade, { g -> state.update { it.copy(grade = g) } }, Modifier.weight(1f), optionLabel = { L.tx(it.label) })
+                    Dropdown(L.tx("Operation"), TurnOperation.entries, input.operation, { o -> state.update { it.copy(operation = o, ap = null, feed = null) } }, Modifier.weight(1f), optionLabel = { L.tx(it.label) })
                 }
                 FieldRow {
-                    Dropdown(
-                        "Nose radius rε", noseRadii, input.noseRadius, { r -> state.update { it.copy(noseRadius = r) } }, Modifier.weight(1f),
+                    Dropdown(L.tx("Nose radius rε"), noseRadii, input.noseRadius, { r -> state.update { it.copy(noseRadius = r) } }, Modifier.weight(1f),
                         optionLabel = { Quantity.LENGTH.formatWithUnit(it, units, if (units == com.shopref.core.units.UnitSystem.METRIC) 1 else 4) },
                     )
-                    NumberField("Entering angle κr", input.enteringAngle, { v -> v?.let { a -> state.update { it.copy(enteringAngle = a) } } }, Quantity.ANGLE, units, Modifier.weight(1f))
+                    NumberField(L.tx("Entering angle κr"), input.enteringAngle, { v -> v?.let { a -> state.update { it.copy(enteringAngle = a) } } }, Quantity.ANGLE, units, Modifier.weight(1f))
                 }
                 FieldRow {
-                    NumberField("Rake angle", input.rakeDeg, { v -> v?.let { a -> state.update { it.copy(rakeDeg = a) } } }, Quantity.ANGLE, units, Modifier.weight(1f))
-                    Dropdown("Edge condition", ToolCondition.entries, input.condition, { c -> state.update { it.copy(condition = c) } }, Modifier.weight(1f), optionLabel = { it.label })
+                    NumberField(L.tx("Rake angle"), input.rakeDeg, { v -> v?.let { a -> state.update { it.copy(rakeDeg = a) } } }, Quantity.ANGLE, units, Modifier.weight(1f))
+                    Dropdown(L.tx("Edge condition"), ToolCondition.entries, input.condition, { c -> state.update { it.copy(condition = c) } }, Modifier.weight(1f), optionLabel = { L.tx(it.label) })
                 }
             }
 
-            SectionCard("Cut") {
+            SectionCard(L.tx("Cut")) {
                 FieldRow {
-                    NumberField("Work diameter", input.diameter, { v -> v?.let { d -> state.update { it.copy(diameter = d) } } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.5)
-                    NumberField("Length of cut", input.lengthOfCut, { v -> v?.let { l -> state.update { it.copy(lengthOfCut = l) } } }, Quantity.LENGTH, units, Modifier.weight(1f))
+                    NumberField(L.tx("Work diameter"), input.diameter, { v -> v?.let { d -> state.update { it.copy(diameter = d) } } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.5)
+                    NumberField(L.tx("Length of cut"), input.lengthOfCut, { v -> v?.let { l -> state.update { it.copy(lengthOfCut = l) } } }, Quantity.LENGTH, units, Modifier.weight(1f))
                 }
                 FieldRow {
-                    NumberField("Depth of cut ap", input.ap, { v -> state.update { it.copy(ap = v) } }, Quantity.LENGTH, units, Modifier.weight(1f), autoValue = TurningCalculator.defaultDepth(input))
-                    NumberField("Feed f", input.feed, { v -> state.update { it.copy(feed = v) } }, Quantity.FEED_PER_REV, units, Modifier.weight(1f), autoValue = TurningCalculator.defaultFeed(input))
+                    NumberField(L.tx("Depth of cut ap"), input.ap, { v -> state.update { it.copy(ap = v) } }, Quantity.LENGTH, units, Modifier.weight(1f), autoValue = TurningCalculator.defaultDepth(input))
+                    NumberField(L.tx("Feed f"), input.feed, { v -> state.update { it.copy(feed = v) } }, Quantity.FEED_PER_REV, units, Modifier.weight(1f), autoValue = TurningCalculator.defaultFeed(input))
                 }
-                SmallNote("Lathe: ${settings.lathe.name}. Depth of cut is radial (diameter changes by 2·ap).")
+                SmallNote(L.tx("Lathe: {0}. Depth of cut is radial (diameter changes by 2·ap).", L.tx(settings.lathe.name)))
             }
 
-            SectionCard("Speeds & feeds") {
-                QuantityRow("Cutting speed", result.vc, Quantity.CUTTING_SPEED, units, emphasize = true)
-                QuantityRow("Feed per revolution", result.feed, Quantity.FEED_PER_REV, units)
-                QuantityRow("Depth of cut", result.ap, Quantity.LENGTH, units)
-                PercentSlider("Speed override", input.speedPercent, { p -> state.update { it.copy(speedPercent = p) } })
-                ResultRow("Cycle time", formatNumber(result.timeMin, 2) + " min")
+            SectionCard(L.tx("Speeds & feeds")) {
+                QuantityRow(L.tx("Cutting speed"), result.vc, Quantity.CUTTING_SPEED, units, emphasize = true)
+                QuantityRow(L.tx("Feed per revolution"), result.feed, Quantity.FEED_PER_REV, units)
+                QuantityRow(L.tx("Depth of cut"), result.ap, Quantity.LENGTH, units)
+                PercentSlider(L.tx("Speed override"), input.speedPercent, { p -> state.update { it.copy(speedPercent = p) } })
+                ResultRow(L.tx("Cycle time"), formatNumber(result.timeMin, 2) + " " + L.tx("min"))
             }
 
-            SectionCard("Forces, power & finish") {
-                QuantityRow("Cutting force Fc", result.fc, Quantity.FORCE, units, emphasize = true)
-                QuantityRow("Feed force Ff", result.ff, Quantity.FORCE, units)
-                QuantityRow("Passive (radial) force Fp", result.fp, Quantity.FORCE, units)
-                QuantityRow("Specific cutting force kc", result.kc, Quantity.STRESS, units)
-                QuantityRow("Cutting power", result.powerKw, Quantity.POWER, units, emphasize = true, valueColor = utilisationColor(result.powerKw / result.availablePowerKw))
-                QuantityRow("Available at this rpm", result.availablePowerKw, Quantity.POWER, units)
-                QuantityRow("Spindle torque", result.torqueNm, Quantity.TORQUE, units)
-                QuantityRow("Material removal rate", result.mrr, Quantity.MRR, units)
+            SectionCard(L.tx("Forces, power & finish")) {
+                QuantityRow(L.tx("Cutting force Fc"), result.fc, Quantity.FORCE, units, emphasize = true)
+                QuantityRow(L.tx("Feed force Ff"), result.ff, Quantity.FORCE, units)
+                QuantityRow(L.tx("Passive (radial) force Fp"), result.fp, Quantity.FORCE, units)
+                QuantityRow(L.tx("Specific cutting force kc"), result.kc, Quantity.STRESS, units)
+                QuantityRow(L.tx("Cutting power"), result.powerKw, Quantity.POWER, units, emphasize = true, valueColor = utilisationColor(result.powerKw / result.availablePowerKw))
+                QuantityRow(L.tx("Available at this rpm"), result.availablePowerKw, Quantity.POWER, units)
+                QuantityRow(L.tx("Spindle torque"), result.torqueNm, Quantity.TORQUE, units)
+                QuantityRow(L.tx("Material removal rate"), result.mrr, Quantity.MRR, units)
                 ThinDivider()
-                QuantityRow("Theoretical Ra", result.raMicron, Quantity.ROUGHNESS, units, emphasize = true)
-                QuantityRow("Theoretical Rt (peak-to-valley)", result.rtMicron, Quantity.ROUGHNESS, units)
-                SmallNote("Fc = kc1.1·b·h^(1−mc), h = f·sin κr, b = ap/sin κr. Ra ≈ f²/(32·rε); real finish is usually 1.5–3× worse.")
+                QuantityRow(L.tx("Theoretical Ra"), result.raMicron, Quantity.ROUGHNESS, units, emphasize = true)
+                QuantityRow(L.tx("Theoretical Rt (peak-to-valley)"), result.rtMicron, Quantity.ROUGHNESS, units)
+                SmallNote(L.tx("Fc = kc1.1·b·h^(1−mc), h = f·sin κr, b = ap/sin κr. Ra ≈ f²/(32·rε); real finish is usually 1.5–3× worse."))
             }
 
             RaFeedCard(settings)
             AdviceList(result.advice)
-            TextButton(onClick = state::reset, modifier = Modifier.fillMaxWidth()) { Text("Reset turning inputs") }
+            TextButton(onClick = state::reset, modifier = Modifier.fillMaxWidth()) { Text(L.tx("Reset turning inputs")) }
         }
     }
 }
 
 @Composable
 private fun RaFeedCard(settings: AppSettings) {
+    val L = LocalLang.current
     val units = settings.units
     var ra by remember { mutableDoubleStateOf(1.6) }
     var r by remember { mutableDoubleStateOf(0.8) }
-    SectionCard("Feed for a target finish") {
+    SectionCard(L.tx("Feed for a target finish")) {
         FieldRow {
-            NumberField("Target Ra", ra, { v -> v?.let { ra = it } }, Quantity.ROUGHNESS, units, Modifier.weight(1f), min = 0.01)
-            NumberField("Nose radius", r, { v -> v?.let { r = it } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.01)
+            NumberField(L.tx("Target Ra"), ra, { v -> v?.let { ra = it } }, Quantity.ROUGHNESS, units, Modifier.weight(1f), min = 0.01)
+            NumberField(L.tx("Nose radius"), r, { v -> v?.let { r = it } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.01)
         }
-        QuantityRow("Max feed", TurningCalculator.feedForRa(ra, r), Quantity.FEED_PER_REV, units, emphasize = true)
+        QuantityRow(L.tx("Max feed"), TurningCalculator.feedForRa(ra, r), Quantity.FEED_PER_REV, units, emphasize = true)
     }
 }

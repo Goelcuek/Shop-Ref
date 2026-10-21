@@ -1,28 +1,38 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.dsl.JsModuleKind
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("jvm") version "2.1.0"
-    `java-library`
+    kotlin("multiplatform") version "2.1.0"
 }
 
 group = "com.shopref"
 version = "1.0"
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-}
-
 kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
+    // JVM: consumed by the Android app and used to run the unit tests.
+    jvm {
+        @OptIn(ExperimentalKotlinGradlePluginApi::class)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
     }
-}
 
-dependencies {
-    testImplementation(kotlin("test"))
-}
+    // JS: the same engine compiled to a single UMD script for the web app (see /web).
+    js(IR) {
+        moduleName = "shopref"
+        nodejs {
+            testTask { enabled = false }
+        }
+        compilerOptions {
+            moduleKind.set(JsModuleKind.MODULE_UMD)
+        }
+        binaries.executable()
+    }
 
-tasks.test {
-    useJUnitPlatform()
+    sourceSets {
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+    }
 }

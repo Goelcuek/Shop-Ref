@@ -1,5 +1,6 @@
 package com.shopref.app.ui.reference
 
+import com.shopref.app.ui.LocalLang
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -47,6 +48,7 @@ internal fun drillSetFor(thread: ThreadSpec): List<DrillSize> =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StandardChips(selected: ThreadStandard, onSelect: (ThreadStandard) -> Unit, includePipe: Boolean = true) {
+    val L = LocalLang.current
     Row(
         Modifier
             .horizontalScroll(rememberScrollState())
@@ -54,13 +56,14 @@ fun StandardChips(selected: ThreadStandard, onSelect: (ThreadStandard) -> Unit, 
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         ThreadStandard.entries.filter { includePipe || !it.isPipe }.forEach { s ->
-            FilterChip(selected = s == selected, onClick = { onSelect(s) }, label = { Text(s.label) })
+            FilterChip(selected = s == selected, onClick = { onSelect(s) }, label = { Text(L.tx(s.label)) })
         }
     }
 }
 
 @Composable
 fun TapDrillChartPage(settings: AppSettings, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     val units = settings.units
     var standard by rememberSaveable { mutableStateOf(ThreadStandard.METRIC_COARSE) }
     val threads = Threads.byStandard(standard)
@@ -72,7 +75,7 @@ fun TapDrillChartPage(settings: AppSettings, modifier: Modifier = Modifier) {
                 val weights = listOf(1.2f, 1f, 1.3f, 1.3f)
                 item {
                     TableRow(
-                        listOf("Size", "Major Ø ($u)", "Tap drill", if (standard == ThreadStandard.NPT) "With reamer" else "Pitch"),
+                        listOf(L.tx("Size"), L.tx("Major Ø") + " ($u)", L.tx("Tap drill"), L.tx(if (standard == ThreadStandard.NPT) "With reamer" else "Pitch")),
                         weights, header = true,
                     )
                 }
@@ -89,7 +92,7 @@ fun TapDrillChartPage(settings: AppSettings, modifier: Modifier = Modifier) {
                 }
             } else {
                 val weights = listOf(1.3f, 1.2f, 1.2f, 1.3f)
-                item { TableRow(listOf("Thread", "Cut tap (≈75%)", "Form tap (65%)", "Minor Ø ($u)"), weights, header = true) }
+                item { TableRow(listOf(L.tx("Thread"), L.tx("Cut tap (≈75%)"), L.tx("Form tap (65%)"), L.tx("Minor Ø") + " ($u)"), weights, header = true) }
                 items(threads) { t ->
                     val formIdeal = ThreadMath.drillForPercentForm(t.majorDiameter, t.pitch, 65.0)
                     val form = DrillSizes.nearest(formIdeal, drillSetFor(t))
@@ -105,9 +108,8 @@ fun TapDrillChartPage(settings: AppSettings, modifier: Modifier = Modifier) {
                 }
             }
             item {
-                SmallNote(
-                    "Cut-tap drills are the common chart sizes (≈75% thread). Form-tap drills use d = D − 0.0068·%·P. " +
-                        "Minor Ø shows the internal-thread limits (6H metric, 2B unified).",
+                SmallNote(L.tx("Cut-tap drills are the common chart sizes (≈75% thread). Form-tap drills use d = D − 0.0068·%·P. " +
+                        "Minor Ø shows the internal-thread limits (6H metric, 2B unified)."),
                     Modifier.padding(12.dp),
                 )
             }
@@ -117,6 +119,7 @@ fun TapDrillChartPage(settings: AppSettings, modifier: Modifier = Modifier) {
 
 @Composable
 fun ThreadPercentPage(settings: AppSettings, modifier: Modifier = Modifier) {
+    val L = LocalLang.current
     val units = settings.units
     var standard by rememberSaveable { mutableStateOf(ThreadStandard.UNC) }
     var thread by remember(standard) { mutableStateOf(Threads.byStandard(standard).first()) }
@@ -127,33 +130,33 @@ fun ThreadPercentPage(settings: AppSettings, modifier: Modifier = Modifier) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        SectionCard("Thread & drill") {
+        SectionCard(L.tx("Thread & drill")) {
             FieldRow {
-                Dropdown("Standard", ThreadStandard.entries.filter { !it.isPipe }, standard, { standard = it }, Modifier.weight(1f), optionLabel = { it.label })
-                Dropdown("Size", Threads.byStandard(standard), thread, { thread = it }, Modifier.weight(1f), optionLabel = { it.designation }, optionDetail = { threadPitchLabel(it) })
+                Dropdown(L.tx("Standard"), ThreadStandard.entries.filter { !it.isPipe }, standard, { standard = it }, Modifier.weight(1f), optionLabel = { L.tx(it.label) })
+                Dropdown(L.tx("Size"), Threads.byStandard(standard), thread, { thread = it }, Modifier.weight(1f), optionLabel = { it.designation }, optionDetail = { threadPitchLabel(it) })
             }
-            NumberField("Drill Ø", drill, { v -> v?.let { drill = it } }, Quantity.LENGTH, units, Modifier.fillMaxWidth(), decimals = 4, min = 0.1)
+            NumberField(L.tx("Drill Ø"), drill, { v -> v?.let { drill = it } }, Quantity.LENGTH, units, Modifier.fillMaxWidth(), decimals = 4, min = 0.1)
             val near = DrillSizes.nearest(drill)
-            SmallNote("Nearest standard drill: ${near.label} (${Quantity.LENGTH.formatWithUnit(near.mm, units)})")
-            ResultRow("Cut tap engagement", formatNumber(ThreadMath.percentThreadCut(thread.majorDiameter, thread.pitch, drill), 1) + "%", emphasize = true)
-            ResultRow("Form tap engagement", formatNumber(ThreadMath.percentThreadForm(thread.majorDiameter, thread.pitch, drill), 1) + "%", emphasize = true)
+            SmallNote(L.tx("Nearest standard drill: {0} ({1})", near.label, Quantity.LENGTH.formatWithUnit(near.mm, units, lang = L)))
+            ResultRow(L.tx("Cut tap engagement"), formatNumber(ThreadMath.percentThreadCut(thread.majorDiameter, thread.pitch, drill), 1) + "%", emphasize = true)
+            ResultRow(L.tx("Form tap engagement"), formatNumber(ThreadMath.percentThreadForm(thread.majorDiameter, thread.pitch, drill), 1) + "%", emphasize = true)
         }
-        SectionCard("Drill for a target engagement") {
+        SectionCard(L.tx("Drill for a target engagement")) {
             val weights = listOf(0.7f, 1f, 1.3f, 0.8f)
-            TableRow(listOf("%", "Exact Ø", "Nearest drill", "Actual"), weights, header = true)
+            TableRow(listOf("%", L.tx("Exact Ø"), L.tx("Nearest drill"), L.tx("Actual")), weights, header = true)
             for (pct in listOf(50, 55, 60, 65, 70, 75, 80, 85)) {
                 val exact = ThreadMath.drillForPercentCut(thread.majorDiameter, thread.pitch, pct.toDouble())
                 val d = DrillSizes.nearest(exact, drillSetFor(thread))
                 val actual = ThreadMath.percentThreadCut(thread.majorDiameter, thread.pitch, d.mm)
-                TableRow(listOf("$pct% cut", len(exact, units), "${d.label}\n${len(d.mm, units)}", formatNumber(actual, 0) + "%"), weights)
+                TableRow(listOf(L.tx("{0}% cut", pct), len(exact, units), "${d.label}\n${len(d.mm, units)}", formatNumber(actual, 0) + "%"), weights)
             }
             for (pct in listOf(55, 60, 65, 70)) {
                 val exact = ThreadMath.drillForPercentForm(thread.majorDiameter, thread.pitch, pct.toDouble())
                 val d = DrillSizes.nearest(exact, drillSetFor(thread))
                 val actual = ThreadMath.percentThreadForm(thread.majorDiameter, thread.pitch, d.mm)
-                TableRow(listOf("$pct% form", len(exact, units), "${d.label}\n${len(d.mm, units)}", formatNumber(actual, 0) + "%"), weights)
+                TableRow(listOf(L.tx("{0}% form", pct), len(exact, units), "${d.label}\n${len(d.mm, units)}", formatNumber(actual, 0) + "%"), weights)
             }
-            SmallNote("Above ≈75% thread, strength barely increases while tapping torque rises sharply. Use 60–65% in tough materials (stainless, titanium, nickel alloys).")
+            SmallNote(L.tx("Above ≈75% thread, strength barely increases while tapping torque rises sharply. Use 60–65% in tough materials (stainless, titanium, nickel alloys)."))
         }
     }
 }
