@@ -1,5 +1,6 @@
 package com.shopref.core
 
+import com.shopref.core.calc.Advice
 import com.shopref.core.calc.Deflection
 import com.shopref.core.calc.DrillType
 import com.shopref.core.calc.DrillingCalculator
@@ -250,5 +251,49 @@ class CalcTest {
         assertEquals("45", com.shopref.core.units.formatSignificant(45.0))
         assertEquals("7.5", com.shopref.core.units.formatSignificant(7.5))
         assertEquals("0.012", com.shopref.core.units.formatSignificant(0.0123))
+    }
+
+    @Test
+    fun insertCuttersFollowTheirLeadAngle() {
+        fun mill(type: MillToolType, d: Double, z: Int, strategy: MillStrategy = MillStrategy.FACING, ap: Double? = null, ae: Double? = null) =
+            MillingCalculator.calculate(MillingInput(steel, toolType = type, diameter = d, flutes = z, strategy = strategy, ap = ap, ae = ae))
+
+        // 45° face mill at ae = 0.75·D: no radial thinning, hex = fz·sin 45°.
+        val face45 = mill(MillToolType.FACE_MILL_45, 63.0, 5)
+        assertEquals(kotlin.math.sqrt(2.0), face45.chipThinningFactor, 0.01)
+        assertEquals(0.75 * 63.0, face45.ae, 1e-6)
+        assertEquals(6.0, face45.apMaxInsert!!, 1e-9)
+        assertTrue(!face45.hasDeflection, "shell mills are arbor-mounted")
+
+        // High-feed mill: 12° lead gives ≈4.8× axial thinning (not capped), shallow ap from the insert.
+        val hf = mill(MillToolType.HIGH_FEED, 32.0, 3)
+        assertEquals(1.0 / kotlin.math.sin(12.0 * PI / 180.0), hf.chipThinningFactor, 0.01)
+        assertEquals(0.8 * 0.15 * 9.0, hf.ap, 1e-6)
+        assertTrue(hf.hasDeflection, "32 mm high-feed mills are shank tools")
+        assertEquals(700.0, hf.allowableBendingStress, 1e-9)
+
+        // Round insert iC 12 at ap = 2.4: κmax = acos(1 − 2·2.4/12) = 53.13°, thinning 1/sin κmax = 1.25.
+        val round = mill(MillToolType.ROUND_INSERT, 50.0, 4)
+        assertEquals(2.4, round.ap, 1e-6)
+        assertEquals(53.13, round.leadAngleDeg, 0.01)
+        assertEquals(1.25, round.chipThinningFactor, 0.001)
+
+        // Indexable end mill: ap beyond the 11 mm insert edge is flagged.
+        val deep = mill(MillToolType.INDEXABLE_END_MILL, 25.0, 3, MillStrategy.SIDE_MILLING, ap = 15.0)
+        assertTrue(deep.advice.any { it.level == Advice.Level.DANGER && "inserts" in it.text }, deep.advice.toString())
+
+        // Disc cutter: ap is the cutter width, ae the slot depth.
+        val disc = mill(MillToolType.DISC, 100.0, 8, MillStrategy.SIDE_MILLING)
+        assertEquals(12.0, disc.ap, 1e-9)
+        assertEquals(15.0, disc.ae, 1e-9)
+    }
+
+    @Test
+    fun serratedRougherCutsWithLessForce() {
+        fun mill(type: MillToolType) = MillingCalculator.calculate(MillingInput(steel, toolType = type, diameter = 12.0, flutes = 4, ap = 12.0, ae = 4.8))
+        val plain = mill(MillToolType.SQUARE_END)
+        val rough = mill(MillToolType.ROUGHING_END)
+        assertEquals(plain.fz, rough.fz, 1e-12)
+        assertEquals(0.85 * plain.forces.meanFxy, rough.forces.meanFxy, 0.01 * plain.forces.meanFxy)
     }
 }

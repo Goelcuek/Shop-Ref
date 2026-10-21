@@ -13,7 +13,7 @@ drill sizes, clearance holes, counterbores, ISO fits, hardness, surface finish, 
 
 | Calculator | Inputs | Outputs |
 |---|---|---|
-| Milling | 40+ materials (ISO P/M/K/N/S/H), HSS / HSS-Co / PM-HSS / carbide / ceramic / PCD, 11 coatings, square / ball / bull-nose / chamfer / indexable cutters, slotting / side milling / HEM-adaptive / finishing / facing, ap, ae, climb/conventional, stick-out, helix, rake, wear | rpm, feed, chip load with radial + axial chip thinning, MRR, power vs. machine limit, torque, **peak & mean cutting forces (Fx, Fy, Fz, \|Fxy\|) with a force-vs-rotation chart**, tool deflection, bending & torsional stress, ramp/plunge/helix feeds, scallop/cusp height, Taylor tool-life impact of speed overrides |
+| Milling | 40+ materials (ISO P/M/K/N/S/H), HSS / HSS-Co / PM-HSS / carbide / ceramic / PCD, 11 coatings, solid square / serrated roughing / bull-nose / ball / chamfer end mills, indexable shoulder end mills, 45° and 90° face mills, round-insert and high-feed mills, side-and-face / slot / T-slot disc cutters and custom-lead insert cutters, slotting / side milling / HEM-adaptive / finishing / facing, ap, ae, climb/conventional, stick-out, helix, rake, wear | rpm, feed, chip load with radial + axial chip thinning, MRR, power vs. machine limit, torque, **peak & mean cutting forces (Fx, Fy, Fz, \|Fxy\|) with a force-vs-rotation chart**, tool deflection, bending & torsional stress, ramp/plunge/helix feeds, scallop/cusp height, Taylor tool-life impact of speed overrides |
 | Drilling | twist, split-point, solid carbide (with/without coolant), indexable, spot drill, reamer; depth, pre-drilled hole | rpm, feed, torque, thrust (lips + chisel edge), power, MRR, cycle time, peck strategy, spot/countersink depth |
 | Tapping | metric coarse/fine, UNC/UNF/UNEF, BSPP; cut / spiral point / spiral flute / form taps; chamfer form; substrate & coating; blind/through | rpm, feed, recommended tap drill for target % thread (cut and form), achieved %, minor-Ø limits (6H/2B), **tapping torque vs. estimated tap breaking torque**, minimum drill depth, holder/clutch setting; thread-milling feeds with arc compensation |
 | Turning | insert grade (coated/uncoated carbide, cermet, ceramic, CBN, PCD, HSS), roughing/medium/finishing, nose radius, entering angle | rpm, feed rate, Fc/Ff/Fp, power, torque, MRR, theoretical Ra/Rt, feed for a target Ra |
@@ -50,6 +50,11 @@ website) and are unit tested against closed-form results.
   revolution. Radial/axial force ratios come from the **oblique-cutting transformation** of Budak, Altintas &
   Armarego (1996, *J. Manuf. Sci. Eng.* 118:216) with Stabler's chip-flow rule; for zero helix this reduces to
   Merchant's `tan(β − α)`. The numerical mean force is checked against Altintas' closed form in the tests.
+* **Insert cutters** — chip thickness from the lead angle, h = fz·sin κr (45° face mills √2, 12° high-feed
+  mills ≈4.8× thinning); round inserts engage κ = 0…κmax with cos κmax = 1 − 2ap/iC, so hex = fz·sin κmax.
+  Depth is limited by the insert edge; shank-type insert cutters bend in their steel body (E = 210 GPa).
+  Serrated roughing end mills cut with ≈15% lower force (published tests report 10–30%: Koca & Budak 2013;
+  Burek et al. 2019).
 * **Deflection** — stepped cantilever (shank + fluted section), fluted section as an equivalent cylinder of
   0.8·D (Kops & Vo 1990, *CIRP Annals* 39(1):93), integrated with the unit-load method.
 * **Drilling** — per-lip Kienzle forces: `Mc = kc·fn·(D² − d0²)/8000` N·m; thrust = lip thrust × (1 + chisel-edge

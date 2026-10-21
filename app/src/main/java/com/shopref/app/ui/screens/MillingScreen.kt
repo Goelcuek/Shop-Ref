@@ -43,6 +43,7 @@ import com.shopref.app.ui.components.ThinDivider
 import com.shopref.app.ui.components.utilisationColor
 import com.shopref.core.calc.MillStrategy
 import com.shopref.core.calc.MillToolType
+import com.shopref.core.calc.withToolType
 import com.shopref.core.calc.MillingCalculator
 import com.shopref.core.tooling.ChipLoadLevel
 import com.shopref.core.tooling.Coating
@@ -81,10 +82,18 @@ fun MillingScreen(settings: AppSettings, session: Session, state: MillingState, 
             MaterialSelector(session.material, onSelect = session::selectMaterial)
 
             SectionCard(L.tx("Tool")) {
-                Dropdown(L.tx("Tool type"), MillToolType.entries, input.toolType, { t -> state.update { it.copy(toolType = t) } }, Modifier.fillMaxWidth(), optionLabel = { L.tx(it.label) })
+                val type = input.toolType
+                val arbor = type.isArborMounted(input.diameter)
+                Dropdown(L.tx("Tool type"), MillToolType.entries, type, { t -> state.update { it.withToolType(t, units) } }, Modifier.fillMaxWidth(),
+                    optionLabel = { L.tx(it.label) }, optionDetail = { L.tx(it.description) },
+                )
                 FieldRow {
-                    Dropdown(L.tx("Substrate"), ToolMaterial.entries, input.toolMaterial, { t -> state.update { it.copy(toolMaterial = t) } }, Modifier.weight(1f), optionLabel = { L.tx(it.label) })
-                    if (input.toolType != MillToolType.INDEXABLE) {
+                    // Insert cutters take carbide, ceramic or PCD inserts; only a disc (T-slot / keyseat) cutter may be HSS.
+                    val substrates = if (type.indexable && type != MillToolType.DISC) ToolMaterial.entries.filter { !it.isHss } else ToolMaterial.entries
+                    Dropdown(L.tx(if (type.indexable) "Insert grade" else "Substrate"), substrates, input.toolMaterial, { t -> state.update { it.copy(toolMaterial = t) } }, Modifier.weight(1f),
+                        optionLabel = { L.tx(if (type.indexable && it == ToolMaterial.CARBIDE) "Carbide insert" else it.label) },
+                    )
+                    if (!type.indexable) {
                         Dropdown(L.tx("Coating"), Coating.entries, input.coating, { c -> state.update { it.copy(coating = c) } }, Modifier.weight(1f),
                             optionLabel = { L.tx(it.label) }, optionDetail = { L.tx(it.description) },
                         )
@@ -92,31 +101,46 @@ fun MillingScreen(settings: AppSettings, session: Session, state: MillingState, 
                 }
                 FieldRow {
                     NumberField(L.tx("Diameter"), input.diameter, { v -> v?.let { d -> state.update { it.copy(diameter = d) } } }, Quantity.LENGTH, units, Modifier.weight(1f), min = 0.1)
-                    IntField(L.tx(if (input.toolType == MillToolType.INDEXABLE) "Inserts" else "Flutes"), input.flutes, { n -> state.update { it.copy(flutes = n) } }, Modifier.weight(1f), 1..40)
+                    IntField(L.tx(if (type.indexable) "Inserts" else "Flutes"), input.flutes, { n -> state.update { it.copy(flutes = n) } }, Modifier.weight(1f), 1..40)
                 }
-                when (input.toolType) {
+                if (type.insertSizeLabel != null || type.hasLeadInput) {
+                    FieldRow {
+                        type.insertSizeLabel?.let { label ->
+                            NumberField(L.tx(label), input.insertSize, { v -> state.update { it.copy(insertSize = v) } }, Quantity.LENGTH, units, Modifier.weight(1f), autoValue = type.defaultInsertSize)
+                        }
+                        if (type.hasLeadInput) {
+                            NumberField(L.tx("Lead angle κr"), input.leadAngleDeg, { v -> state.update { it.copy(leadAngleDeg = v) } }, Quantity.ANGLE, units, Modifier.weight(1f), autoValue = type.defaultLead)
+                        }
+                    }
+                }
+                when (type) {
                     MillToolType.CORNER_RADIUS -> NumberField(L.tx("Corner radius"), input.cornerRadius, { v -> v?.let { r -> state.update { it.copy(cornerRadius = r) } } }, Quantity.LENGTH, units, Modifier.fillMaxWidth())
                     MillToolType.CHAMFER -> FieldRow {
                         NumberField(L.tx("Included angle"), input.chamferAngle, { v -> v?.let { a -> state.update { it.copy(chamferAngle = a) } } }, Quantity.ANGLE, units, Modifier.weight(1f))
                         NumberField(L.tx("Tip diameter"), input.chamferTipDiameter, { v -> v?.let { a -> state.update { it.copy(chamferTipDiameter = a) } } }, Quantity.LENGTH, units, Modifier.weight(1f))
                     }
-                    MillToolType.INDEXABLE -> NumberField(L.tx("Lead angle κr (90° = square shoulder)"), input.leadAngleDeg, { v -> v?.let { a -> state.update { it.copy(leadAngleDeg = a) } } }, Quantity.ANGLE, units, Modifier.fillMaxWidth())
                     else -> Unit
                 }
-                if (input.toolType != MillToolType.INDEXABLE) {
+                if (!arbor) {
                     FieldRow {
-                        NumberField(L.tx("Flute length"), input.fluteLength, { v -> state.update { it.copy(fluteLength = v) } }, Quantity.LENGTH, units, Modifier.weight(1f), autoValue = MillingCalculator.fluteLengthOf(input.copy(fluteLength = null)))
+                        if (!type.indexable) {
+                            NumberField(L.tx("Flute length"), input.fluteLength, { v -> state.update { it.copy(fluteLength = v) } }, Quantity.LENGTH, units, Modifier.weight(1f), autoValue = MillingCalculator.fluteLengthOf(input.copy(fluteLength = null)))
+                        }
                         NumberField(L.tx("Stick-out"), input.stickout, { v -> state.update { it.copy(stickout = v) } }, Quantity.LENGTH, units, Modifier.weight(1f), autoValue = MillingCalculator.stickoutOf(input.copy(stickout = null)))
                     }
                 }
                 TextButton(onClick = { showAdvanced = !showAdvanced }) { Text(L.tx(if (showAdvanced) "Hide advanced" else "Advanced: helix, rake, shank, wear")) }
                 if (showAdvanced) {
                     FieldRow {
-                        NumberField(L.tx("Helix"), input.helixDeg, { v -> v?.let { h -> state.update { it.copy(helixDeg = h) } } }, Quantity.ANGLE, units, Modifier.weight(1f))
-                        NumberField(L.tx("Radial rake"), input.rakeDeg, { v -> state.update { it.copy(rakeDeg = v) } }, Quantity.ANGLE, units, Modifier.weight(1f), autoValue = if (input.toolType == MillToolType.INDEXABLE) 10.0 else MillingCalculator.defaultRake(input.material))
+                        if (!type.indexable) {
+                            NumberField(L.tx("Helix"), input.helixDeg, { v -> v?.let { h -> state.update { it.copy(helixDeg = h) } } }, Quantity.ANGLE, units, Modifier.weight(1f))
+                        }
+                        NumberField(L.tx("Radial rake"), input.rakeDeg, { v -> state.update { it.copy(rakeDeg = v) } }, Quantity.ANGLE, units, Modifier.weight(1f), autoValue = if (type.indexable) 10.0 else MillingCalculator.defaultRake(input.material))
                     }
                     FieldRow {
-                        NumberField(L.tx("Shank Ø"), input.shankDiameter, { v -> state.update { it.copy(shankDiameter = v) } }, Quantity.LENGTH, units, Modifier.weight(1f), autoValue = input.diameter)
+                        if (!arbor) {
+                            NumberField(L.tx("Shank Ø"), input.shankDiameter, { v -> state.update { it.copy(shankDiameter = v) } }, Quantity.LENGTH, units, Modifier.weight(1f), autoValue = input.diameter)
+                        }
                         Dropdown(L.tx("Edge condition"), ToolCondition.entries, input.condition, { c -> state.update { it.copy(condition = c) } }, Modifier.weight(1f), optionLabel = { L.tx(it.label) })
                     }
                 }
@@ -143,6 +167,8 @@ fun MillingScreen(settings: AppSettings, session: Session, state: MillingState, 
                 ResultRow(L.tx("Engagement angle"), formatNumber(result.engagementAngleDeg, 0) + "°")
                 QuantityRow(L.tx("Depths used: ap"), result.ap, Quantity.LENGTH, units)
                 QuantityRow(L.tx("ae"), result.ae, Quantity.LENGTH, units)
+                if (input.toolType.indexable) ResultRow(L.tx("Lead angle κr"), formatNumber(result.leadAngleDeg, 1) + "°")
+                result.apMaxInsert?.let { QuantityRow(L.tx("Max ap for these inserts"), it, Quantity.LENGTH, units) }
                 Dropdown(L.tx("Chip-load level"), ChipLoadLevel.entries, settings.chipLoadLevel, settings::updateChipLoadLevel, Modifier.fillMaxWidth(),
                     optionLabel = { L.tx(it.label) }, optionDetail = { L.tx(it.description) },
                 )
@@ -165,9 +191,9 @@ fun MillingScreen(settings: AppSettings, session: Session, state: MillingState, 
                 QuantityRow(L.tx("Mean specific cutting force kc"), result.forces.meanKc, Quantity.STRESS, units)
                 ResultRow(L.tx("Teeth in cut (avg)"), formatNumber(result.forces.teethInCut, 2))
                 ThinDivider()
-                if (input.toolType != MillToolType.INDEXABLE) {
+                if (result.hasDeflection) {
                     QuantityRow(L.tx("Tool deflection"), result.deflection * 1000.0, Quantity.DEFLECTION, units, emphasize = true)
-                    QuantityRow(L.tx("Bending stress"), result.bendingStress, Quantity.STRESS, units, valueColor = utilisationColor(result.bendingStress / input.toolMaterial.allowableBendingStress))
+                    QuantityRow(L.tx("Bending stress"), result.bendingStress, Quantity.STRESS, units, valueColor = utilisationColor(result.bendingStress / result.allowableBendingStress))
                     QuantityRow(L.tx("Torsional stress"), result.torsionStress, Quantity.STRESS, units)
                 }
                 Text(L.tx("Force over one revolution"), style = MaterialTheme.typography.labelLarge)
@@ -180,13 +206,15 @@ fun MillingScreen(settings: AppSettings, session: Session, state: MillingState, 
                 EstimateRow(L.tx("Metal removed"), result.toolLifeVolume, Quantity.VOLUME, units)
             }
 
-            SectionCard(L.tx("Entry moves & finish")) {
+            if (input.toolType != MillToolType.DISC) SectionCard(L.tx("Entry moves & finish")) {
                 ResultRow(L.tx("Max ramp angle"), formatNumber(result.rampAngleDeg, 1) + "°")
                 QuantityRow(L.tx("Ramp / helix feed"), result.rampFeed, Quantity.FEED_RATE, units)
-                QuantityRow(L.tx("Plunge feed (centre-cutting)"), result.plungeFeed, Quantity.FEED_RATE, units)
-                ResultRow(L.tx("Helical bore Ø"),
-                    Quantity.LENGTH.format(input.diameter * 1.2, units) + " – " + Quantity.LENGTH.formatWithUnit(input.diameter * 1.8, units),
-                )
+                if (!input.toolType.isArborMounted(input.diameter)) {
+                    QuantityRow(L.tx("Plunge feed (centre-cutting)"), result.plungeFeed, Quantity.FEED_RATE, units)
+                    ResultRow(L.tx("Helical bore Ø"),
+                        Quantity.LENGTH.format(input.diameter * 1.2, units) + " – " + Quantity.LENGTH.formatWithUnit(input.diameter * 1.8, units),
+                    )
+                }
                 result.cuspHeight?.let {
                     QuantityRow(L.tx(if (input.toolType == MillToolType.BALL_END) "Scallop height" else "Theoretical cusp height"), it * 1000.0, Quantity.DEFLECTION, units)
                 }

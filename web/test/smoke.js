@@ -101,6 +101,22 @@ const check = (cond, msg) => {
   await p.click('[data-ref="FITS"]');
   check((await p.$$eval('.card h3', (h) => h.map((e) => e.innerText))).some((x) => x.includes('H7 / g6')), 'fit heading keeps the shaft letter lower-case');
 
+  // Every milling cutter calculates; insert cutters get their own fields and defaults.
+  await p.click('[data-tab="mill"]');
+  const types = await p.$$eval('[data-sel="mill.toolType"] option', (o) => o.map((x) => x.value));
+  check(types.length >= 12, `${types.length} milling cutter types`);
+  for (const id of types) {
+    await p.selectOption('[data-sel="mill.toolType"]', id);
+    const ok = await p.$$eval('#kpis .kpi .v', (v) => v.length === 8 && v.every((x) => /\d/.test(x.textContent)));
+    check(ok, `${id} calculates`);
+  }
+  await p.selectOption('[data-sel="mill.toolType"]', 'FACE_MILL_45');
+  check(await p.inputValue('[data-num="mill.diameter"]') === '63', 'face mill loads its 63 mm default');
+  check(await p.$('[data-num="mill.stickout"]') === null, 'shell mill has no stick-out field');
+  check(await p.$('[data-num="mill.insertSize"]') !== null, 'insert size field shown');
+  check(/1\.41×/.test(await p.textContent('#results')), '45° lead gives √2 chip thinning');
+  await p.selectOption('[data-sel="mill.toolType"]', 'SQUARE_END');
+
   // Material picker.
   await p.click('[data-tab="mill"]');
   await p.click('[data-action="material"]');

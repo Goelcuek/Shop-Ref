@@ -21,6 +21,8 @@ object Citations {
         Citation("ShawOxford1957", "Shaw, M.C., Oxford, C.J. (1957). On the drilling of metals 2 — The torque and thrust in drilling. Trans. ASME 79, 139–148.", "Drill torque/thrust, chisel-edge contribution"),
         Citation("CaoSutherland2002", "Cao, T., Sutherland, J.W. (2002). Investigation of thread tapping load characteristics through mechanistics modeling and experimentation. Int. J. Machine Tools & Manufacture 42(14), 1527–1538. doi:10.1016/S0890-6955(02)00108-6", "Tapping torque: chip formation + friction base load, chip packing"),
         Citation("ArmaregoChen2002", "Armarego, E.J.A., Chen, M.N.P. (2002). Predictive cutting models for the forces and torque in machine tapping with straight flute taps. CIRP Annals 51(1), 75–78.", "Tapping torque mechanics"),
+        Citation("KocaBudak2013", "Koca, R., Budak, E. (2013). Optimization of serrated end mills for reduced cutting energy and higher stability. Procedia CIRP 8 (14th CIRP Conference on Modeling of Machining Operations).", "Serrated roughing end mills: lower cutting force"),
+        Citation("Burek2019", "Burek, J. et al. (2019). Advances in Production Engineering & Management 14(4), 494–506 (serrated end mills in high-performance milling of aluminium alloy).", "Serrated roughing end mills: lower cutting force"),
         Citation("Taylor1907", "Taylor, F.W. (1907). On the art of cutting metals. Trans. ASME 28, 31–350.", "Tool life v·T^n = C"),
         Citation("Sandvik", "Sandvik Coromant. Metalworking formulas and definitions; Technical Guide (material classification CMC/ISO).", "kc rake correction (1 − γ/100), drilling/turning power formulas, material groups"),
         Citation("MachHB", "Oberg, E. et al. Machinery's Handbook, 31st ed. Industrial Press (2020).", "Percent thread, tap drills, drill sizes, clearance holes, unit power, 15-min tool-life basis of speed tables"),
@@ -36,6 +38,12 @@ object Citations {
     )
 
     val formulas = listOf(
+        FormulaEntry(
+            "Insert cutters: lead angle",
+            "hex = fz · sin κr\nround insert: cos κmax = 1 − 2·ap/iC,  hex = fz · sin κmax",
+            "A smaller lead angle thins the chip, so fz rises for the same hex: 45° ×1.41, 12° high-feed ×4.8. Round inserts thin the chip most at shallow ap.",
+            listOf("Sandvik", "Altintas2012"),
+        ),
         FormulaEntry("Spindle speed", "n = 1000·vc / (π·D)", "vc in m/min, D in mm. Inch: rpm = 3.82·SFM / D[in].", listOf("Sandvik")),
         FormulaEntry("Feed rate", "vf = fz · z · n   (milling)\nvf = fn · n   (drilling, turning)", "fz feed per tooth, z flutes.", listOf("Sandvik")),
         FormulaEntry("Radial chip thinning", "hmax = 2·fz·√(ae/D − (ae/D)²)   for ae < D/2", "Program fz = hmax,target · D / (2·√(ae·D − ae²)).", listOf("Martellotti1941")),

@@ -50,7 +50,7 @@ class I18nTest {
         ChipLoadLevel.entries.forEach { add(it.label); add(it.description) }
         Rigidity.entries.forEach { add(it.label) }
         Machine.PRESETS.forEach { add(it.name) }
-        MillToolType.entries.forEach { add(it.label) }
+        MillToolType.entries.forEach { add(it.label); add(it.description); it.insertSizeLabel?.let(::add) }
         MillStrategy.entries.forEach { add(it.label); add(it.description) }
         DrillType.entries.forEach { add(it.label) }
         TapType.entries.forEach { add(it.label) }

@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.shopref.app.ui.reference.ReferencePage
+import com.shopref.core.calc.MillToolType
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,10 +35,10 @@ class SmokeTest {
 
     @Test
     fun everyMillingToolTypeCalculates() {
-        var current = "Square end mill"
-        for (next in listOf("Ball end mill", "Corner-radius (bull nose)", "Chamfer mill / spot", "Indexable face / shoulder mill", "Square end mill")) {
+        var current = MillToolType.SQUARE_END.label
+        for (next in MillToolType.entries.drop(1).map { it.label } + MillToolType.SQUARE_END.label) {
             rule.onNodeWithText(current).performClick()
-            rule.onNodeWithText(next).performClick()
+            rule.onNodeWithText(next).performScrollTo().performClick()
             rule.waitForIdle()
             current = next
         }

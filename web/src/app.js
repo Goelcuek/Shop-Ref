@@ -7,6 +7,8 @@ const Q = E.quantities();
 const OPT = E.options();
 const MATS = E.materials();
 const MAT = Object.fromEntries(MATS.map((m) => [m.id, m]));
+const MILL_TYPE = Object.fromEntries(OPT.millToolTypes.map((m) => [m.id, m]));
+const HSS_IDS = ['HSS', 'HSS_CO', 'PM_HSS'];
 const GROUPS = E.isoGroups();
 const GROUP = Object.fromEntries(GROUPS.map((g) => [g.id, g]));
 const PRESETS = E.machinePresets();
@@ -48,7 +50,7 @@ const S = {
 const DEF = {
   mill: {
     toolType: 'SQUARE_END', toolMaterial: 'CARBIDE', coating: 'ALTIN', diameter: 12, flutes: 4, helixDeg: 35, rakeDeg: null,
-    cornerRadius: 1, chamferAngle: 90, chamferTipDiameter: 0, leadAngleDeg: 45, fluteLength: null, stickout: null,
+    cornerRadius: 1, chamferAngle: 90, chamferTipDiameter: 0, leadAngleDeg: null, insertSize: null, fluteLength: null, stickout: null,
     shankDiameter: null, strategy: 'SIDE_MILLING', ap: null, ae: null, climb: true, condition: 'NORMAL', speedPercent: 100, feedPercent: 100,
   },
   drill: { drillType: 'CARBIDE', coating: 'TIALN', diameter: 10, depth: 30, preHoleDiameter: 0, flutes: 6, condition: 'NORMAL', speedPercent: 100, feedPercent: 100, spotDia: 6, spotAngle: 90, spotTip: 0 },
@@ -64,6 +66,23 @@ const DEF = {
 };
 const IN = {};
 for (const k of Object.keys(DEF)) IN[k] = Object.assign({}, DEF[k], store.get('in.' + k, {}));
+if (!MILL_TYPE[IN.mill.toolType]) IN.mill.toolType = DEF.mill.toolType;
+
+/**
+ * Picking another cutter loads its defaults. Size and tooth count change only when the cutter family's
+ * default size differs (so square → ball keeps your diameter); depths, insert size and lead go back to auto.
+ */
+function applyMillType(id, previous) {
+  const T = MILL_TYPE[id];
+  const P = MILL_TYPE[previous] || T;
+  if (T.defaultDiameter !== P.defaultDiameter) {
+    IN.mill.diameter = imperial() ? T.defaultDiameterInch : T.defaultDiameter;
+    IN.mill.flutes = T.defaultFlutes;
+  }
+  Object.assign(IN.mill, { insertSize: null, leadAngleDeg: null, ap: null, ae: null, stickout: null, fluteLength: null, shankDiameter: null, rakeDeg: null });
+  if (T.defaultStrategy) IN.mill.strategy = T.defaultStrategy;
+  if (T.indexable && id !== 'DISC' && HSS_IDS.includes(IN.mill.toolMaterial)) IN.mill.toolMaterial = 'CARBIDE';
+}
 
 let saveTimer = null;
 function saveNow() {
@@ -148,12 +167,21 @@ function num(calc, key, label, q, o = {}) {
 /** Select bound to IN[calc][key] (or S[key] when calc is 'S'). */
 function sel(calc, key, label, options, o = {}) {
   const cur = calc === 'S' ? S[key] : IN[calc][key];
-  const opts = options.map((op) => {
+  const one = (op) => {
     const id = typeof op === 'object' ? op.id : op;
     const lab = typeof op === 'object' ? (o.raw ? op.label : t(op.label)) : String(op);
     const title = typeof op === 'object' && op.description ? ` title="${esc(t(op.description))}"` : '';
     return `<option value="${esc(id)}"${String(id) === String(cur) ? ' selected' : ''}${title}>${esc(lab)}</option>`;
-  }).join('');
+  };
+  // Options carrying a `group` are listed under <optgroup> headings, in first-seen order.
+  const groups = [];
+  for (const op of options) {
+    const name = typeof op === 'object' ? op.group : null;
+    let g = groups.find((x) => x.name === name);
+    if (!g) groups.push(g = { name, items: [] });
+    g.items.push(op);
+  }
+  const opts = groups.map((g) => (g.name ? `<optgroup label="${esc(t(g.name))}">${g.items.map(one).join('')}</optgroup>` : g.items.map(one).join(''))).join('');
   return `<label class="field ${o.cls || ''}"><span class="lbl">${esc(t(label))}</span>
     <select data-sel="${calc}.${key}" ${o.rerender ? 'data-rerender="1"' : ''} ${o.numeric ? 'data-numeric="1"' : ''}>${opts}</select></label>`;
 }
@@ -370,22 +398,29 @@ const CALCS = {
     compute: () => E.milling(Object.assign(common('mill', S.mill), { chipLoadLevel: S.level })),
     inputs() {
       const i = IN.mill;
-      const indexable = i.toolType === 'INDEXABLE';
+      const T = MILL_TYPE[i.toolType];
+      const ix = T.indexable;
+      const arbor = T.arborMounted || (ix && i.diameter >= 40);
+      // Insert cutters take carbide, ceramic or PCD inserts; only a disc (T-slot / keyseat) cutter may be HSS.
+      const substrates = (ix && i.toolType !== 'DISC' ? OPT.toolMaterials.filter((m) => !HSS_IDS.includes(m.id)) : OPT.toolMaterials)
+        .map((m) => (ix && m.id === 'CARBIDE' ? Object.assign({}, m, { label: 'Carbide insert' }) : m));
       const tool = fields(
         sel('mill', 'toolType', 'Tool type', OPT.millToolTypes, { rerender: true, cls: 'span2' }),
-        sel('mill', 'toolMaterial', 'Substrate', OPT.toolMaterials),
-        indexable ? '' : sel('mill', 'coating', 'Coating', OPT.coatings),
+        `<p class="note full typedesc">${esc(t(T.description))}</p>`,
+        sel('mill', 'toolMaterial', ix ? 'Insert grade' : 'Substrate', substrates),
+        ix ? '' : sel('mill', 'coating', 'Coating', OPT.coatings),
         num('mill', 'diameter', 'Diameter', 'LENGTH', { min: 0.1 }),
-        num('mill', 'flutes', indexable ? 'Inserts' : 'Flutes', 'NONE', { int: true, min: 1, extra: 0 }),
+        num('mill', 'flutes', ix ? 'Inserts' : 'Flutes', 'NONE', { int: true, min: 1, extra: 0 }),
+        T.insertSizeLabel ? num('mill', 'insertSize', T.insertSizeLabel, 'LENGTH', { auto: 'insertSizeAuto', min: 1 }) : '',
+        T.hasLeadInput ? num('mill', 'leadAngleDeg', 'Lead angle κr', 'ANGLE', { auto: 'leadAuto', min: 8 }) : '',
         i.toolType === 'CORNER_RADIUS' ? num('mill', 'cornerRadius', 'Corner radius', 'LENGTH', { min: 0 }) : '',
         i.toolType === 'CHAMFER' ? num('mill', 'chamferAngle', 'Included angle', 'ANGLE', { min: 10 }) : '',
         i.toolType === 'CHAMFER' ? num('mill', 'chamferTipDiameter', 'Tip diameter', 'LENGTH', { min: 0 }) : '',
-        indexable ? num('mill', 'leadAngleDeg', 'Lead angle κr (90° = square shoulder)', 'ANGLE', { min: 10, cls: 'span2' }) : '',
-        indexable ? '' : num('mill', 'fluteLength', 'Flute length', 'LENGTH', { auto: 'fluteLengthAuto', min: 0.1 }),
-        indexable ? '' : num('mill', 'stickout', 'Stick-out', 'LENGTH', { auto: 'stickoutAuto', min: 0.1 }),
-        indexable ? '' : num('mill', 'helixDeg', 'Helix', 'ANGLE'),
+        ix ? '' : num('mill', 'fluteLength', 'Flute length', 'LENGTH', { auto: 'fluteLengthAuto', min: 0.1 }),
+        arbor ? '' : num('mill', 'stickout', 'Stick-out', 'LENGTH', { auto: 'stickoutAuto', min: 0.1 }),
+        ix ? '' : num('mill', 'helixDeg', 'Helix', 'ANGLE'),
         num('mill', 'rakeDeg', 'Radial rake', 'ANGLE', { auto: 'rakeAuto' }),
-        indexable ? '' : num('mill', 'shankDiameter', 'Shank Ø', 'LENGTH', { auto: 'diameter', min: 0.1 }),
+        arbor ? '' : num('mill', 'shankDiameter', 'Shank Ø', 'LENGTH', { auto: 'diameter', min: 0.1 }),
         sel('mill', 'condition', 'Edge condition', OPT.toolConditions),
       );
       const cut = fields(
@@ -407,7 +442,7 @@ const CALCS = {
       secondary(kpi('Material removal', r.mrr, 'MRR')),
       powerKpi(r.powerKw, r.availablePowerKw),
       lifeKpi(r.toolLife, t('≈ {0} of cut', sigU(r.toolLifePath, 'DISTANCE'))),
-      secondary(IN.mill.toolType === 'INDEXABLE' ? kpi('Peak lateral force', r.peakFxy, 'FORCE')
+      secondary(!r.hasDeflection ? kpi('Peak lateral force', r.peakFxy, 'FORCE')
         : kpi('Tool deflection', r.deflection * 1000, 'DEFLECTION', {
           status: r.deflection > 4 * r.deflectionLimit ? 'critical' : r.deflection > r.deflectionLimit ? 'warning' : '',
           c: t('guideline {0}', fmtU(r.deflectionLimit * 1000, 'DEFLECTION')),
@@ -424,6 +459,8 @@ const CALCS = {
         [t('Engagement angle'), fmtN(r.engagementAngleDeg, 0) + '°'],
         [t('Depths used: ap'), fmtU(r.ap, 'LENGTH')],
         ['ae', fmtU(r.ae, 'LENGTH')],
+        MILL_TYPE[i.toolType].indexable ? [t('Lead angle κr'), fmtN(r.leadAngleDeg, 1) + '°'] : null,
+        r.apMaxInsert != null ? [t('Max ap for these inserts'), fmtU(r.apMaxInsert, 'LENGTH')] : null,
       ])) + card(esc(t('Forces & power')), rows([
         [t('Material removal rate'), fmtU(r.mrr, 'MRR'), 'em'],
         [t('Cutting power'), fmtU(r.powerKw, 'POWER'), 'em ' + warnClass(r.powerKw / r.availablePowerKw)],
@@ -441,7 +478,7 @@ const CALCS = {
       ])) + lifeCard(r.toolLife, [
         [t('Feed path within the tool life'), sigU(r.toolLifePath, 'DISTANCE')],
         [t('Metal removed'), sigU(r.toolLifeVolume, 'VOLUME')],
-      ]) + (i.toolType === 'INDEXABLE' ? '' : card(esc(t('Deflection & stress')), rows([
+      ]) + (!r.hasDeflection ? '' : card(esc(t('Deflection & stress')), rows([
         [t('Tool deflection'), fmtU(r.deflection * 1000, 'DEFLECTION'), 'em ' + (r.deflection > 4 * r.deflectionLimit ? 'danger' : r.deflection > r.deflectionLimit ? 'warn' : '')],
         [t('Guideline for this strategy'), fmtU(r.deflectionLimit * 1000, 'DEFLECTION')],
         [t('Bending stress'), fmtU(r.bendingStress, 'STRESS'), warnClass(r.bendingStress / r.allowableStress)],
@@ -450,13 +487,13 @@ const CALCS = {
       ])))
         + card(esc(t('Force over one revolution')), forceChart(r.samples)
           + note(esc(t('Mechanistic model: Kienzle kc with oblique-cutting force ratios, integrated over teeth, helix and rotation. Rigid tool, no runout.'))), 'wide')
-        + card(esc(t('Entry moves & finish')), rows([
+        + (i.toolType === 'DISC' ? '' : card(esc(t('Entry moves & finish')), rows([
           [t('Max ramp angle'), fmtN(r.rampAngleDeg, 1) + '°'],
           [t('Ramp / helix feed'), fmtU(r.rampFeed, 'FEED_RATE')],
-          [t('Plunge feed (centre-cutting)'), fmtU(r.plungeFeed, 'FEED_RATE')],
-          [t('Helical bore Ø'), fmt(i.diameter * 1.2, 'LENGTH') + ' – ' + fmtU(i.diameter * 1.8, 'LENGTH')],
+          r.arborMounted ? null : [t('Plunge feed (centre-cutting)'), fmtU(r.plungeFeed, 'FEED_RATE')],
+          r.arborMounted ? null : [t('Helical bore Ø'), fmt(i.diameter * 1.2, 'LENGTH') + ' – ' + fmtU(i.diameter * 1.8, 'LENGTH')],
           r.cuspHeight != null ? [t(i.toolType === 'BALL_END' ? 'Scallop height' : 'Theoretical cusp height'), fmtU(r.cuspHeight * 1000, 'DEFLECTION')] : null,
-        ])) + adviceHtml(r.advice.filter((a) => a.level === 'INFO'));
+        ]))) + adviceHtml(r.advice.filter((a) => a.level === 'INFO'));
     },
   },
 
@@ -1211,9 +1248,11 @@ document.addEventListener('change', (e) => {
   if (el.dataset.sel) {
     const [calc, key] = el.dataset.sel.split('.');
     const value = el.dataset.numeric ? +el.value : el.value;
+    const previous = calc === 'S' ? S[key] : IN[calc][key];
     if (calc === 'S') S[key] = value;
     else IN[calc][key] = value;
     if (calc === 'mill' && key === 'strategy') { IN.mill.ap = null; IN.mill.ae = null; }
+    if (calc === 'mill' && key === 'toolType') applyMillType(value, previous);
     if (calc === 'turn' && key === 'operation') { IN.turn.ap = null; IN.turn.feed = null; }
     if (calc === 'tap' && key === 'standard') { IN.tap.thread = E.threads(value)[0].designation; IN.tap.drillDiameter = null; IN.tap.millDia = null; }
     if (calc === 'tap' && (key === 'thread' || key === 'tapType')) { IN.tap.drillDiameter = null; IN.tap.targetPercent = null; IN.tap.millDia = null; }

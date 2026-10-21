@@ -166,7 +166,19 @@ fun options(): dynamic = obj { o ->
     o.toolConditions = ToolCondition.entries.map { option(it.name, it.label) }.toTypedArray()
     o.chipLoadLevels = ChipLoadLevel.entries.map { option(it.name, it.label, it.description) }.toTypedArray()
     o.rigidity = Rigidity.entries.map { option(it.name, it.label) }.toTypedArray()
-    o.millToolTypes = MillToolType.entries.map { option(it.name, it.label) }.toTypedArray()
+    o.millToolTypes = MillToolType.entries.map { t ->
+        val op = option(t.name, t.label, t.description)
+        op.group = if (t.indexable) "Indexable (inserts)" else "Solid tools"
+        op.indexable = t.indexable
+        op.arborMounted = t.arborMounted
+        op.insertSizeLabel = t.insertSizeLabel
+        op.hasLeadInput = t.hasLeadInput
+        op.defaultDiameter = t.defaultDiameter(UnitSystem.METRIC)
+        op.defaultDiameterInch = t.defaultDiameter(UnitSystem.IMPERIAL)
+        op.defaultFlutes = t.defaultFlutes
+        op.defaultStrategy = t.defaultStrategy?.name
+        op
+    }.toTypedArray()
     o.millStrategies = MillStrategy.entries.map { option(it.name, it.label, it.description) }.toTypedArray()
     o.drillTypes = DrillType.entries.map { option(it.name, it.label) }.toTypedArray()
     o.tapTypes = TapType.entries.map { option(it.name, it.label) }.toTypedArray()
@@ -201,7 +213,8 @@ private fun millingInput(o: dynamic): MillingInput = MillingInput(
     cornerRadius = num(o, "cornerRadius", 1.0),
     chamferAngle = num(o, "chamferAngle", 90.0),
     chamferTipDiameter = num(o, "chamferTipDiameter", 0.0),
-    leadAngleDeg = num(o, "leadAngleDeg", 45.0),
+    leadAngleDeg = numOrNull(o, "leadAngleDeg"),
+    insertSize = numOrNull(o, "insertSize"),
     fluteLength = numOrNull(o, "fluteLength"),
     stickout = numOrNull(o, "stickout"),
     shankDiameter = numOrNull(o, "shankDiameter"),
@@ -230,12 +243,14 @@ fun milling(o: dynamic): dynamic {
         it.ap = r.ap; it.ae = r.ae; it.apAuto = apAuto; it.aeAuto = aeAuto
         it.fluteLengthAuto = MillingCalculator.fluteLengthOf(input.copy(fluteLength = null))
         it.stickoutAuto = MillingCalculator.stickoutOf(input.copy(stickout = null))
-        it.rakeAuto = if (input.toolType == MillToolType.INDEXABLE) 10.0 else MillingCalculator.defaultRake(input.material)
+        it.rakeAuto = if (input.toolType.indexable) 10.0 else MillingCalculator.defaultRake(input.material)
+        it.insertSizeAuto = input.toolType.defaultInsertSize; it.leadAuto = input.toolType.defaultLead
+        it.arborMounted = input.toolType.isArborMounted(input.diameter); it.apMaxInsert = r.apMaxInsert; it.hasDeflection = r.hasDeflection
         it.mrr = r.mrr; it.powerKw = r.powerKw; it.availablePowerKw = r.availablePowerKw; it.torqueNm = r.torqueNm
         it.peakTorque = r.forces.peakTorque; it.peakFxy = r.forces.peakFxy; it.meanFxy = r.forces.meanFxy
         it.meanFx = r.forces.meanFx; it.meanFy = r.forces.meanFy; it.meanFz = r.forces.meanFz; it.meanKc = r.forces.meanKc
         it.teethInCut = r.forces.teethInCut; it.deflection = r.deflection; it.deflectionLimit = r.deflectionLimit; it.bendingStress = r.bendingStress
-        it.torsionStress = r.torsionStress; it.allowableStress = input.toolMaterial.allowableBendingStress
+        it.torsionStress = r.torsionStress; it.allowableStress = r.allowableBendingStress
         it.toolLife = lifeJs(r.toolLife); it.toolLifePath = r.toolLifePath; it.toolLifeVolume = r.toolLifeVolume; it.cuspHeight = r.cuspHeight; it.rampAngleDeg = r.rampAngleDeg
         it.rampFeed = r.rampFeed; it.plungeFeed = r.plungeFeed; it.rakeDeg = r.rakeDeg; it.leadAngleDeg = r.leadAngleDeg
         it.samples = r.forces.samples.map { s ->
