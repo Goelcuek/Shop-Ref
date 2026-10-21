@@ -39,6 +39,7 @@ import com.shopref.app.ui.components.utilisationColor
 import com.shopref.core.calc.MillStrategy
 import com.shopref.core.calc.MillToolType
 import com.shopref.core.calc.MillingCalculator
+import com.shopref.core.tooling.ChipLoadLevel
 import com.shopref.core.tooling.Coating
 import com.shopref.core.tooling.ToolCondition
 import com.shopref.core.tooling.ToolMaterial
@@ -48,7 +49,7 @@ import com.shopref.core.units.formatNumber
 @Composable
 fun MillingScreen(settings: AppSettings, session: Session, state: MillingState, modifier: Modifier = Modifier) {
     val units = settings.units
-    val input = state.input.copy(material = session.material, machine = settings.mill, units = units)
+    val input = state.input.copy(material = session.material, machine = settings.mill, units = units, chipLoadLevel = settings.chipLoadLevel)
     val result = remember(input) { MillingCalculator.calculate(input) }
     val (apAuto, aeAuto) = remember(input) { MillingCalculator.defaultEngagement(input) }
     var showAdvanced by remember { mutableStateOf(false) }
@@ -130,6 +131,10 @@ fun MillingScreen(settings: AppSettings, session: Session, state: MillingState, 
             ResultRow("Engagement angle", formatNumber(result.engagementAngleDeg, 0) + "°")
             QuantityRow("Depths used: ap", result.ap, Quantity.LENGTH, units)
             QuantityRow("ae", result.ae, Quantity.LENGTH, units)
+            Dropdown(
+                "Chip-load level", ChipLoadLevel.entries, settings.chipLoadLevel, settings::updateChipLoadLevel, Modifier.fillMaxWidth(),
+                optionLabel = { it.label }, optionDetail = { it.description },
+            )
             PercentSlider("Speed override", input.speedPercent, { p -> state.update { it.copy(speedPercent = p) } })
             PercentSlider("Chip-load override", input.feedPercent, { p -> state.update { it.copy(feedPercent = p) } })
             if (input.speedPercent != 100.0) {

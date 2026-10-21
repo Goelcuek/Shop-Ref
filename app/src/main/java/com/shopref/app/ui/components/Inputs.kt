@@ -208,8 +208,8 @@ fun PercentSlider(label: String, percent: Double, onChange: (Double) -> Unit, mo
         Slider(
             value = percent.toFloat(),
             onValueChange = { onChange((it / 5f).roundToInt() * 5.0) },
-            valueRange = 50f..150f,
-            steps = 19,
+            valueRange = 50f..200f,
+            steps = 29,
         )
     }
 }

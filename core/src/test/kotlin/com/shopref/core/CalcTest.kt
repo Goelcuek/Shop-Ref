@@ -19,6 +19,7 @@ import com.shopref.core.calc.TurningCalculator
 import com.shopref.core.calc.TurningInput
 import com.shopref.core.material.MaterialLibrary
 import com.shopref.core.reference.Threads
+import com.shopref.core.tooling.ChipLoadLevel
 import com.shopref.core.tooling.Coating
 import com.shopref.core.tooling.Machine
 import com.shopref.core.tooling.ToolCondition
@@ -122,7 +123,7 @@ class CalcTest {
     fun millingRecommendationIsPlausible() {
         val r = MillingCalculator.calculate(
             MillingInput(steel, ToolMaterial.CARBIDE, Coating.ALTIN, MillToolType.SQUARE_END, diameter = 12.0, flutes = 4,
-                strategy = MillStrategy.SIDE_MILLING, ap = 12.0, ae = 4.8),
+                strategy = MillStrategy.SIDE_MILLING, ap = 12.0, ae = 4.8, chipLoadLevel = ChipLoadLevel.CONSERVATIVE),
         )
         assertTrue(r.rpm in 4000.0..6000.0, "rpm ${r.rpm}")
         assertTrue(r.fz in 0.05..0.08, "fz ${r.fz}")
@@ -130,6 +131,27 @@ class CalcTest {
         // Power from the force model agrees with the MRR × kc estimate within 15%.
         val pMrr = r.mrr * r.forces.meanKc / 60_000.0
         assertClose(pMrr, r.powerKw, 0.15)
+    }
+
+    @Test
+    fun chipLoadLevelsBracketPublishedHemData() {
+        // ½" 4-flute AlTiN carbide, 4140 pre-hardened, 1" DOC × 0.04" WOC (8%), HEM.
+        val base = MillingInput(
+            MaterialLibrary.byId("p_alloy_prehard")!!, ToolMaterial.CARBIDE, Coating.ALTIN, MillToolType.SQUARE_END,
+            diameter = 12.7, flutes = 4, strategy = MillStrategy.HEM, ap = 25.4, ae = 1.016, fluteLength = 31.75,
+        )
+        val ipm = { level: ChipLoadLevel -> MillingCalculator.calculate(base.copy(chipLoadLevel = level)).feed / 25.4 }
+        val conservative = MillingCalculator.calculate(base.copy(chipLoadLevel = ChipLoadLevel.CONSERVATIVE))
+        // Conservative keeps the cautious 0.0020" catalogue chip (RobbJack) before thinning.
+        assertClose(0.0020, conservative.hmaxTarget / 25.4, 0.01)
+        val aggressive = MillingCalculator.calculate(base.copy(chipLoadLevel = ChipLoadLevel.AGGRESSIVE))
+        // Aggressive matches high-end catalogue/HEM practice: ≈0.0035" base chip (Maritool), ≈0.0065" programmed,
+        // ≈625 SFM, ≈125 IPM (FSWizard gives 4792 rpm, 627 SFM, 0.0065 in/tooth, 124.7 IPM for this cut).
+        assertClose(0.0035, aggressive.hmaxTarget / 25.4, 0.02)
+        assertClose(627.0, aggressive.vc * 3.28084, 0.05)
+        assertClose(124.7, ipm(ChipLoadLevel.AGGRESSIVE), 0.08)
+        assertTrue(ipm(ChipLoadLevel.CONSERVATIVE) < ipm(ChipLoadLevel.STANDARD))
+        assertTrue(ipm(ChipLoadLevel.STANDARD) < ipm(ChipLoadLevel.AGGRESSIVE))
     }
 
     @Test

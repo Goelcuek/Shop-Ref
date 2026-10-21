@@ -22,6 +22,7 @@ import com.shopref.app.ui.components.FieldRow
 import com.shopref.app.ui.components.NumberField
 import com.shopref.app.ui.components.SectionCard
 import com.shopref.app.ui.components.SmallNote
+import com.shopref.core.tooling.ChipLoadLevel
 import com.shopref.core.tooling.Machine
 import com.shopref.core.tooling.Rigidity
 import com.shopref.core.units.Quantity
@@ -42,6 +43,16 @@ fun SettingsScreen(settings: AppSettings, modifier: Modifier = Modifier) {
                 FilterChip(selected = units == UnitSystem.METRIC, onClick = { settings.updateUnits(UnitSystem.METRIC) }, label = { Text("Metric (mm, m/min, kW, N)") })
                 FilterChip(selected = units == UnitSystem.IMPERIAL, onClick = { settings.updateUnits(UnitSystem.IMPERIAL) }, label = { Text("Inch (in, SFM, hp, lbf)") })
             }
+        }
+        SectionCard("Milling recommendations") {
+            Dropdown(
+                "Chip-load level", ChipLoadLevel.entries, settings.chipLoadLevel, settings::updateChipLoadLevel, Modifier.fillMaxWidth(),
+                optionLabel = { it.label }, optionDetail = { it.description },
+            )
+            SmallNote(
+                "Scales the recommended chip load and cutting speed. Conservative ≈ cautious catalogue starting values; " +
+                    "Aggressive ≈ high-end catalogue / HEM practice on a rigid machine with a good holder.",
+            )
         }
         MachineEditor("Milling machine", settings.mill, units, settings::updateMill)
         MachineEditor("Lathe", settings.lathe, units, settings::updateLathe)

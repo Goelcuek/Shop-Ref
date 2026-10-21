@@ -3,6 +3,7 @@ package com.shopref.app.state
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.shopref.core.tooling.ChipLoadLevel
 import com.shopref.core.tooling.Machine
 import com.shopref.core.tooling.Rigidity
 import com.shopref.core.units.UnitSystem
@@ -31,6 +32,16 @@ class AppSettings(private val store: KeyValueStore) {
 
     var lathe by mutableStateOf(loadMachine("lathe") ?: Machine.PRESETS.last())
         private set
+
+    var chipLoadLevel by mutableStateOf(
+        store.getString("chipLoadLevel")?.let { runCatching { ChipLoadLevel.valueOf(it) }.getOrNull() } ?: ChipLoadLevel.STANDARD,
+    )
+        private set
+
+    fun updateChipLoadLevel(value: ChipLoadLevel) {
+        chipLoadLevel = value
+        store.putString("chipLoadLevel", value.name)
+    }
 
     fun updateUnits(value: UnitSystem) {
         units = value

@@ -121,6 +121,17 @@ enum class ToolCondition(val label: String, val forceFactor: Double) {
     WORN("Worn (end of life)", 1.3),
 }
 
+/**
+ * How hard the milling recommendations push. Conservative matches cautious catalogue starting
+ * values (e.g. RobbJack 4140: 0.0020" on a ½" end mill); Aggressive matches high-end catalogue and
+ * HEM practice (e.g. Maritool 4140: 0.0035" on ½"). Multiplies the target chip thickness and speed.
+ */
+enum class ChipLoadLevel(val label: String, val description: String, val chipFactor: Double, val speedFactor: Double) {
+    CONSERVATIVE("Conservative", "Cautious catalogue starting values", 1.0, 1.0),
+    STANDARD("Standard", "Typical catalogue values on a rigid machine", 1.35, 1.05),
+    AGGRESSIVE("Aggressive / HEM", "High-end catalogue values: rigid setup, good holder, premium tools", 1.75, 1.10),
+}
+
 /** Machine/setup rigidity class; scales default depths and chip loads. */
 enum class Rigidity(val label: String, val depthFactor: Double, val feedFactor: Double) {
     LIGHT("Light (router, mini mill)", 0.5, 0.75),

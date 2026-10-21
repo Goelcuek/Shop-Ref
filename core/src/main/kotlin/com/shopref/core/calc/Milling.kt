@@ -3,6 +3,7 @@ package com.shopref.core.calc
 import com.shopref.core.material.Family
 import com.shopref.core.material.IsoGroup
 import com.shopref.core.material.Material
+import com.shopref.core.tooling.ChipLoadLevel
 import com.shopref.core.tooling.Coating
 import com.shopref.core.tooling.Machine
 import com.shopref.core.tooling.ToolCondition
@@ -67,6 +68,8 @@ data class MillingInput(
     /** Chip-load override in percent of the recommendation. */
     val feedPercent: Double = 100.0,
     val machine: Machine = Machine(),
+    /** Recommendation aggressiveness (chip load and speed). */
+    val chipLoadLevel: ChipLoadLevel = ChipLoadLevel.STANDARD,
     /** Unit system used for advice text. */
     val units: UnitSystem = UnitSystem.METRIC,
 )
@@ -275,8 +278,15 @@ object MillingCalculator {
         }
         val phiE = MillingGeometry.engagementAngle(aeEff, deff)
         val engagementFactor = (90.0 / max(phiE.toDeg(), 1.0)).pow(0.3).coerceIn(0.8, 1.6)
-        val strategySpeed = if (input.strategy == MillStrategy.FINISHING) 1.05 else 1.0
-        val vcRec = substrateSpeed * coatingFactor * engagementFactor * strategySpeed
+        // HEM keeps the arc of contact short and the chips thin, so heat per edge drops further than the
+        // engagement factor alone captures; tool makers' HEM data run ≈15% faster.
+        val strategySpeed = when (input.strategy) {
+            MillStrategy.FINISHING -> 1.05
+            MillStrategy.HEM -> 1.15
+            else -> 1.0
+        }
+        val level = input.chipLoadLevel
+        val vcRec = substrateSpeed * coatingFactor * engagementFactor * strategySpeed * level.speedFactor
         val vcTarget = vcRec * input.speedPercent / 100.0
         var rpm = CuttingBasics.rpm(vcTarget, deff)
 
@@ -286,8 +296,9 @@ object MillingCalculator {
             MillStrategy.FINISHING -> 0.75
             else -> 1.0
         }
-        val hmaxBase = if (input.toolType == MillToolType.INDEXABLE) insertHex(m.group)
-        else m.fzPerD * d * input.toolMaterial.chipLoadFactor
+        // Insert chip loads have less headroom than solid tools, so the level is applied at half strength.
+        val hmaxBase = if (input.toolType == MillToolType.INDEXABLE) insertHex(m.group) * (1.0 + (level.chipFactor - 1.0) * 0.5)
+        else m.fzPerD * d * input.toolMaterial.chipLoadFactor * level.chipFactor
         val hmaxTarget = (hmaxBase * input.machine.rigidity.feedFactor * strategyFeed * input.feedPercent / 100.0)
             .coerceAtLeast(0.002)
         val axialThinning = 1.0 / kotlin.math.sin(lead.toRad())

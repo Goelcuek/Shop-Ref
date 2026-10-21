@@ -24,6 +24,10 @@ grades, quick rpm/feed calculators, unit converter, full material data, and ever
 **Machine profiles:** max/min rpm, max feed, spindle power, torque limit (constant-torque region),
 efficiency and rigidity class for the mill and the lathe — recommendations are clamped and checked against them.
 
+**Chip-load level** (milling): *Conservative* uses cautious catalogue starting values (e.g. 0.0020" per tooth on a
+½" end mill in pre-hardened 4140), *Standard* typical catalogue values, *Aggressive / HEM* high-end catalogue and
+HEM practice (≈0.0035" before chip thinning on the same tool). Speed and chip-load overrides go from 50% to 200%.
+
 ## Cutting-force models and sources
 
 All calculations live in the pure-Kotlin [`core`](core) module and are unit tested against closed-form results.
