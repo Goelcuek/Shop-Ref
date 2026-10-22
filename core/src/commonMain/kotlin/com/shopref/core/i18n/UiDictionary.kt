@@ -283,6 +283,9 @@ internal object UiDictionary {
         "Flat (countersunk) head screws ({0})" to "Havşa başlı cıvatalar ({0})",
         "Angle" to "Açı",
         "Spot depth*" to "Punta derinliği*",
+        "Head depth†" to "Baş derinliği†",
+        "†Countersink depth from the surface to the screw's nominal Ø for a flush head (= head height)." to
+            "†Baş yüzeyle aynı hizada olacak şekilde, yüzeyden vida anma çapına kadar havşa derinliği (= baş yüksekliği).",
         "*Plunge depth of a sharp-pointed countersink/spot drill of the same angle for a head slightly below flush." to
             "*Başın yüzeyin hafif altında kalması için aynı açılı sivri havşa/punta matkabının dalma derinliği.",
         "Countersink calculator" to "Havşa hesabı",

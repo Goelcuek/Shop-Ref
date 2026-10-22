@@ -86,4 +86,18 @@ class ReferenceTest {
         assertEquals(50.0, Hardness.hrcFromHv(513.0)!!, 1e-9)
         assertNull(Hardness.hvFromHrc(80.0))
     }
+
+    @Test
+    fun countersinkHeadDepthIsTheStandardHeadHeight() {
+        val inch = com.shopref.core.reference.Holes.inchCountersinks.associateBy { it.size }
+        // ASME B18.3 flat countersunk head cap screws: head height (reference) in inches.
+        mapOf("#4" to 0.083, "1/4" to 0.161, "5/16" to 0.198, "3/8" to 0.234, "1/2" to 0.251).forEach { (size, h) ->
+            assertEquals(h, inch.getValue(size).headDepth / 25.4, 0.0015, size)
+        }
+        // ISO 10642 countersunk socket screws: k max in mm.
+        val metric = com.shopref.core.reference.Holes.metricCountersinks.associateBy { it.size }
+        mapOf("M3" to 1.86, "M6" to 3.72, "M10" to 6.2, "M20" to 10.16).forEach { (size, k) ->
+            assertEquals(k, metric.getValue(size).headDepth, 0.005, size)
+        }
+    }
 }

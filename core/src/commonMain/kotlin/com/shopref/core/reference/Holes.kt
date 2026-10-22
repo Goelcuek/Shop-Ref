@@ -6,8 +6,11 @@ data class ClearanceHole(val size: String, val nominal: Double, val close: Doubl
 /** Socket head cap screw head and recommended counterbore. Sizes in mm. */
 data class Counterbore(val size: String, val headDiameter: Double, val headHeight: Double, val cboreDiameter: Double, val cboreDepth: Double, val clearance: Double)
 
-/** Flat (countersunk) head screw: theoretical sharp head diameter and countersink angle. */
-data class Countersink(val size: String, val headDiameter: Double, val angle: Double, val clearance: Double)
+/** Flat (countersunk) head screw: theoretical sharp head diameter, countersink angle and nominal diameter [mm]. */
+data class Countersink(val size: String, val headDiameter: Double, val angle: Double, val clearance: Double, val nominal: Double) {
+    /** Countersink depth from the surface to the screw's nominal Ø for a flush head; equals the head height. */
+    val headDepth: Double get() = Holes.countersinkDepth(headDiameter, angle, nominal)
+}
 
 object Holes {
     private fun inch(v: Double) = v * 25.4
@@ -74,17 +77,17 @@ object Holes {
 
     /** ISO 10642 countersunk socket screws (90°). */
     val metricCountersinks: List<Countersink> = listOf(
-        Countersink("M3", 6.72, 90.0, 3.4), Countersink("M4", 8.96, 90.0, 4.5), Countersink("M5", 11.2, 90.0, 5.5),
-        Countersink("M6", 13.44, 90.0, 6.6), Countersink("M8", 17.92, 90.0, 9.0), Countersink("M10", 22.4, 90.0, 11.0),
-        Countersink("M12", 26.88, 90.0, 13.5), Countersink("M16", 33.6, 90.0, 17.5), Countersink("M20", 40.32, 90.0, 22.0),
+        Countersink("M3", 6.72, 90.0, 3.4, 3.0), Countersink("M4", 8.96, 90.0, 4.5, 4.0), Countersink("M5", 11.2, 90.0, 5.5, 5.0),
+        Countersink("M6", 13.44, 90.0, 6.6, 6.0), Countersink("M8", 17.92, 90.0, 9.0, 8.0), Countersink("M10", 22.4, 90.0, 11.0, 10.0),
+        Countersink("M12", 26.88, 90.0, 13.5, 12.0), Countersink("M16", 33.6, 90.0, 17.5, 16.0), Countersink("M20", 40.32, 90.0, 22.0, 20.0),
     )
 
     /** ASME B18.3 flat countersunk head cap screws (82°), theoretical sharp head diameter. */
     val inchCountersinks: List<Countersink> = listOf(
-        Countersink("#4", inch(0.255), 82.0, inch(0.1285)), Countersink("#6", inch(0.307), 82.0, inch(0.1695)),
-        Countersink("#8", inch(0.359), 82.0, inch(0.196)), Countersink("#10", inch(0.411), 82.0, inch(0.221)),
-        Countersink("1/4", inch(0.531), 82.0, inch(0.266)), Countersink("5/16", inch(0.656), 82.0, inch(0.332)),
-        Countersink("3/8", inch(0.781), 82.0, inch(0.397)), Countersink("1/2", inch(0.938), 82.0, inch(0.531)),
+        Countersink("#4", inch(0.255), 82.0, inch(0.1285), inch(0.112)), Countersink("#6", inch(0.307), 82.0, inch(0.1695), inch(0.138)),
+        Countersink("#8", inch(0.359), 82.0, inch(0.196), inch(0.164)), Countersink("#10", inch(0.411), 82.0, inch(0.221), inch(0.190)),
+        Countersink("1/4", inch(0.531), 82.0, inch(0.266), inch(0.250)), Countersink("5/16", inch(0.656), 82.0, inch(0.332), inch(0.3125)),
+        Countersink("3/8", inch(0.781), 82.0, inch(0.397), inch(0.375)), Countersink("1/2", inch(0.938), 82.0, inch(0.531), inch(0.500)),
     )
 
     /** Countersink depth from the surface (sharp corner) for diameter [dia] and included angle. */

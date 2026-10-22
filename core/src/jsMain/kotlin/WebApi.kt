@@ -425,6 +425,7 @@ fun holes(): dynamic = obj { o ->
         obj {
             it.size = c.size; it.head = c.headDiameter; it.angle = c.angle; it.clearance = c.clearance
             it.spotDepth = Holes.countersinkDepth(c.headDiameter + if (c.angle == 90.0) 0.2 else 0.127, c.angle)
+            it.headDepth = c.headDepth
         }
     }.toTypedArray()
     o.metricClearance = ch(Holes.metricClearance); o.inchClearance = ch(Holes.inchClearance)

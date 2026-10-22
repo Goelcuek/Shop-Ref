@@ -916,8 +916,9 @@ const REF = {
     return chips('screws', [['METRIC', t('Metric (ISO)')], ['INCH', t('Inch (UNC/UNF)')]], R.screws)
       + `<div class="grid2"><div>${card(esc(t('Socket head cap screws ({0})', u)), table([t('Screw'), t('Head Ø'), t("C'bore Ø"), t('Depth'), t('Thru hole')],
         cb.map((c) => `<tr><td><b>${c.size}</b></td><td class="n">${len(c.head)}</td><td class="n">${len(c.cbore)}</td><td class="n">${len(c.depth)}</td><td class="n">${len(c.clearance)}</td></tr>`).join(''), { num: true }))}</div>
-      <div style="display:flex;flex-direction:column;gap:16px">${card(esc(t('Flat (countersunk) head screws ({0})', u)), table([t('Screw'), t('Head Ø'), t('Angle'), t('Thru hole'), t('Spot depth*')],
-        cs.map((c) => `<tr><td><b>${c.size}</b></td><td class="n">${len(c.head)}</td><td class="n">${fmtN(c.angle, 0)}°</td><td class="n">${len(c.clearance)}</td><td class="n">${len(c.spotDepth)}</td></tr>`).join(''), { num: true })
+      <div style="display:flex;flex-direction:column;gap:16px">${card(esc(t('Flat (countersunk) head screws ({0})', u)), table([t('Screw'), t('Head Ø'), t('Angle'), t('Thru hole'), t('Head depth†'), t('Spot depth*')],
+        cs.map((c) => `<tr><td><b>${c.size}</b></td><td class="n">${len(c.head)}</td><td class="n">${fmtN(c.angle, 0)}°</td><td class="n">${len(c.clearance)}</td><td class="n">${len(c.headDepth)}</td><td class="n">${len(c.spotDepth)}</td></tr>`).join(''), { num: true })
+        + note(esc(t('†Countersink depth from the surface to the screw\'s nominal Ø for a flush head (= head height).')))
         + note(esc(t('*Plunge depth of a sharp-pointed countersink/spot drill of the same angle for a head slightly below flush.'))))}
       ${card(esc(t('Countersink calculator')), fields(rnum('cskDia', 'Countersink Ø', 'LENGTH'), rnum('cskAngle', 'Angle', 'ANGLE'), rnum('cskTip', 'Tool tip Ø (0 = sharp)', 'LENGTH', { cls: 'span2' }))
         + rows([[t('Plunge depth'), fmtU(E.countersinkDepth(R.cskDia, R.cskAngle, R.cskTip), 'LENGTH'), 'em']]))}</div></div>`;

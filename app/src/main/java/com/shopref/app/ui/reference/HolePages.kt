@@ -126,16 +126,17 @@ fun CounterborePage(settings: AppSettings, modifier: Modifier = Modifier) {
                 TableRow(listOf(c.size, len(c.headDiameter, units), len(c.cboreDiameter, units), len(c.cboreDepth, units), len(c.clearance, units)), w)
             }
             val cs = if (system == ScrewSystem.METRIC) Holes.metricCountersinks else Holes.inchCountersinks
-            val w2 = listOf(0.8f, 1f, 0.7f, 1f, 1f)
+            val w2 = listOf(0.8f, 1f, 0.7f, 1f, 1f, 1f)
             item {
                 Text(L.tx("Flat (countersunk) head screws ({0})", u), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(12.dp))
-                TableRow(listOf(L.tx("Screw"), L.tx("Head Ø"), L.tx("Angle"), L.tx("Thru hole"), L.tx("Spot depth*")), w2, header = true)
+                TableRow(listOf(L.tx("Screw"), L.tx("Head Ø"), L.tx("Angle"), L.tx("Thru hole"), L.tx("Head depth†"), L.tx("Spot depth*")), w2, header = true)
             }
             items(cs) { c ->
                 val depth = Holes.countersinkDepth(c.headDiameter + if (system == ScrewSystem.METRIC) 0.2 else 0.005 * 25.4, c.angle)
-                TableRow(listOf(c.size, len(c.headDiameter, units), formatNumber(c.angle, 0) + "°", len(c.clearance, units), len(depth, units)), w2)
+                TableRow(listOf(c.size, len(c.headDiameter, units), formatNumber(c.angle, 0) + "°", len(c.clearance, units), len(c.headDepth, units), len(depth, units)), w2)
             }
             item {
+                SmallNote(L.tx("†Countersink depth from the surface to the screw's nominal Ø for a flush head (= head height)."), Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp))
                 SmallNote(L.tx("*Plunge depth of a sharp-pointed countersink/spot drill of the same angle for a head slightly below flush."), Modifier.padding(12.dp))
                 Column(Modifier.padding(12.dp)) {
                     SectionCard(L.tx("Countersink calculator")) {

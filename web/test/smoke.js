@@ -98,6 +98,13 @@ const check = (cond, msg) => {
   check(/1553 rpm/.test(await p.textContent('#refContent')), '100 m/min at Ø20.5 mm = 1553 rpm');
   await p.locator('[data-rnum="base"][data-sys="IMPERIAL"]').fill('1-1/4');
   check(await p.inputValue('[data-rnum="base"][data-sys="METRIC"]') === '31.75', '1-1/4 in = 31.75 mm');
+  // Countersinks: head depth (= head height) beside the pointed-tool spot depth.
+  await p.click('[data-units="IMPERIAL"]');
+  await p.click('[data-ref="COUNTERBORES"]');
+  await p.click('[data-chip="screws"][data-v="INCH"]');
+  const row516 = await p.$$eval('#refContent tr', (rows) => rows.map((r) => r.innerText).find((x) => x.startsWith('5/16') && x.includes('82')));
+  check(/0\.1976/.test(row516) && /0\.3802/.test(row516), `5/16 flat head: head depth 0.1976 and spot depth 0.3802 (${row516 && row516.replace(/\s+/g, ' ')})`);
+  await p.click('[data-units="METRIC"]');
   await p.click('[data-ref="FITS"]');
   check((await p.$$eval('.card h3', (h) => h.map((e) => e.innerText))).some((x) => x.includes('H7 / g6')), 'fit heading keeps the shaft letter lower-case');
 
