@@ -106,7 +106,10 @@ fun TurningScreen(settings: AppSettings, session: Session, state: TurningState, 
                 QuantityRow(L.tx("Cutting speed"), result.vc, Quantity.CUTTING_SPEED, units, emphasize = true)
                 QuantityRow(L.tx("Feed per revolution"), result.feed, Quantity.FEED_PER_REV, units)
                 QuantityRow(L.tx("Depth of cut"), result.ap, Quantity.LENGTH, units)
+                NumberField(L.tx("Cutting speed"), input.cuttingSpeed, { v -> state.update { it.copy(cuttingSpeed = v) } }, Quantity.CUTTING_SPEED, units, Modifier.fillMaxWidth(),
+                    autoValue = result.vcRecommended * input.speedPercent / 100.0, min = 1.0)
                 PercentSlider(L.tx("Speed override"), input.speedPercent, { p -> state.update { it.copy(speedPercent = p) } })
+                if (input.cuttingSpeed != null) SmallNote(L.tx("Speed override applies only while the cutting speed is blank."))
                 ResultRow(L.tx("Cycle time"), formatNumber(result.timeMin, 2) + " " + L.tx("min"))
             }
 

@@ -113,7 +113,10 @@ fun DrillingScreen(settings: AppSettings, session: Session, state: DrillingState
                 QuantityRow(L.tx("Cutting speed"), result.vc, Quantity.CUTTING_SPEED, units, emphasize = true)
                 QuantityRow(L.tx("Feed per revolution"), result.fn, Quantity.FEED_PER_REV, units, emphasize = true)
                 QuantityRow(L.tx("Chip thickness per lip"), result.chipThickness, Quantity.CHIP_LOAD, units)
+                NumberField(L.tx("Cutting speed"), input.cuttingSpeed, { v -> state.update { it.copy(cuttingSpeed = v) } }, Quantity.CUTTING_SPEED, units, Modifier.fillMaxWidth(),
+                    autoValue = result.vcRecommended * input.speedPercent / 100.0, min = 1.0)
                 PercentSlider(L.tx("Speed override"), input.speedPercent, { p -> state.update { it.copy(speedPercent = p) } })
+                if (input.cuttingSpeed != null) SmallNote(L.tx("Speed override applies only while the cutting speed is blank."))
                 PercentSlider(L.tx("Feed override"), input.feedPercent, { p -> state.update { it.copy(feedPercent = p) } })
                 Text(L.tx("Pecking"), style = MaterialTheme.typography.labelLarge)
                 Text(result.peckAdvice, style = MaterialTheme.typography.bodyMedium)

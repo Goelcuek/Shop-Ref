@@ -296,4 +296,16 @@ class CalcTest {
         assertEquals(plain.fz, rough.fz, 1e-12)
         assertEquals(0.85 * plain.forces.meanFxy, rough.forces.meanFxy, 0.01 * plain.forces.meanFxy)
     }
+
+    @Test
+    fun typedCuttingSpeedReplacesTheRecommendation() {
+        val rec = TurningCalculator.calculate(TurningInput(steel))
+        val fast = TurningCalculator.calculate(TurningInput(steel, cuttingSpeed = rec.vcRecommended * 1.2, speedPercent = 50.0))
+        assertEquals(rec.vcRecommended * 1.2, fast.vc, 0.5, "typed vc wins over the override")
+        assertEquals(15.0 * 1.2.pow(-1.0 / 0.3), fast.toolLife.minutes, 0.05)
+        val mill = MillingCalculator.calculate(MillingInput(steel, cuttingSpeed = 100.0))
+        assertEquals(100.0, mill.vc, 0.5)
+        val drill = DrillingCalculator.calculate(DrillingInput(steel, cuttingSpeed = 60.0))
+        assertEquals(60.0, drill.vc, 0.5)
+    }
 }

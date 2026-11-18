@@ -362,6 +362,7 @@ internal object UiDictionary {
         "Cutter width" to "Freze genişliği",
         "Insert edge length" to "Uç kesme kenarı boyu",
         "Lead angle κr" to "Yanaşma açısı κr",
+        "Speed override applies only while the cutting speed is blank." to "Hız ayarı yalnızca kesme hızı alanı boşken uygulanır.",
         "Carbide insert" to "Karbür uç",
         "Max ap for these inserts" to "Uçların izin verdiği maks. ap",
         "Solid tools" to "Yekpare takımlar",

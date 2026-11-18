@@ -82,6 +82,8 @@ data class TurningInput(
     val lengthOfCut: Double = 100.0,
     val condition: ToolCondition = ToolCondition.NORMAL,
     val speedPercent: Double = 100.0,
+    /** Cutting speed to run [m/min]; null = recommendation × [speedPercent]. */
+    val cuttingSpeed: Double? = null,
     val machine: Machine = Machine.PRESETS.last(),
     val units: UnitSystem = UnitSystem.METRIC,
     val lang: Lang = Lang.EN,
@@ -166,7 +168,7 @@ object TurningCalculator {
             1.0
         }
         val vcRec = m.turnVc * gradeFactor * input.operation.speedFactor
-        var rpm = CuttingBasics.rpm(vcRec * input.speedPercent / 100.0, dia)
+        var rpm = CuttingBasics.rpm(input.cuttingSpeed ?: (vcRec * input.speedPercent / 100.0), dia)
         val machine = input.machine
         if (rpm > machine.maxRpm) {
             val vcMax = f.speed(CuttingBasics.cuttingSpeed(machine.maxRpm, dia))

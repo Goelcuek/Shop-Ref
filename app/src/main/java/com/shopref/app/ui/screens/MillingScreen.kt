@@ -172,7 +172,10 @@ fun MillingScreen(settings: AppSettings, session: Session, state: MillingState, 
                 Dropdown(L.tx("Chip-load level"), ChipLoadLevel.entries, settings.chipLoadLevel, settings::updateChipLoadLevel, Modifier.fillMaxWidth(),
                     optionLabel = { L.tx(it.label) }, optionDetail = { L.tx(it.description) },
                 )
+                NumberField(L.tx("Cutting speed"), input.cuttingSpeed, { v -> state.update { it.copy(cuttingSpeed = v) } }, Quantity.CUTTING_SPEED, units, Modifier.fillMaxWidth(),
+                    autoValue = result.vcRecommended * input.speedPercent / 100.0, min = 1.0)
                 PercentSlider(L.tx("Speed override"), input.speedPercent, { p -> state.update { it.copy(speedPercent = p) } })
+                if (input.cuttingSpeed != null) SmallNote(L.tx("Speed override applies only while the cutting speed is blank."))
                 PercentSlider(L.tx("Chip-load override"), input.feedPercent, { p -> state.update { it.copy(feedPercent = p) } })
             }
 

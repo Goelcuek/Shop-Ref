@@ -147,6 +147,8 @@ data class MillingInput(
     val condition: ToolCondition = ToolCondition.NORMAL,
     /** Speed override in percent of the recommendation. */
     val speedPercent: Double = 100.0,
+    /** Cutting speed to run [m/min]; null = recommendation × [speedPercent]. */
+    val cuttingSpeed: Double? = null,
     /** Chip-load override in percent of the recommendation. */
     val feedPercent: Double = 100.0,
     val machine: Machine = Machine(),
@@ -465,7 +467,7 @@ object MillingCalculator {
         }
         val level = input.chipLoadLevel
         val vcRec = substrateSpeed * coatingFactor * engagementFactor * strategySpeed * level.speedFactor
-        val vcTarget = vcRec * input.speedPercent / 100.0
+        val vcTarget = input.cuttingSpeed ?: (vcRec * input.speedPercent / 100.0)
         var rpm = CuttingBasics.rpm(vcTarget, deff)
 
         // --- Chip load -----------------------------------------------------------------------------

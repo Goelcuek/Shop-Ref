@@ -51,9 +51,9 @@ const DEF = {
   mill: {
     toolType: 'SQUARE_END', toolMaterial: 'CARBIDE', coating: 'ALTIN', diameter: 12, flutes: 4, helixDeg: 35, rakeDeg: null,
     cornerRadius: 1, chamferAngle: 90, chamferTipDiameter: 0, leadAngleDeg: null, insertSize: null, fluteLength: null, stickout: null,
-    shankDiameter: null, strategy: 'SIDE_MILLING', ap: null, ae: null, climb: true, condition: 'NORMAL', speedPercent: 100, feedPercent: 100,
+    shankDiameter: null, strategy: 'SIDE_MILLING', ap: null, ae: null, climb: true, condition: 'NORMAL', speedPercent: 100, feedPercent: 100, cuttingSpeed: null,
   },
-  drill: { drillType: 'CARBIDE', coating: 'TIALN', diameter: 10, depth: 30, preHoleDiameter: 0, flutes: 6, condition: 'NORMAL', speedPercent: 100, feedPercent: 100, spotDia: 6, spotAngle: 90, spotTip: 0 },
+  drill: { drillType: 'CARBIDE', coating: 'TIALN', diameter: 10, depth: 30, preHoleDiameter: 0, flutes: 6, condition: 'NORMAL', speedPercent: 100, cuttingSpeed: null, feedPercent: 100, spotDia: 6, spotAngle: 90, spotTip: 0 },
   tap: {
     standard: 'METRIC_COARSE', thread: 'M8×1.25', tapType: 'SPIRAL_FLUTE', chamfer: 'SEMI_BOTTOMING', tapMaterial: 'HSS_CO', coating: 'TICN',
     flutes: 3, blindHole: true, threadDepth: 15, targetPercent: null, drillDiameter: null, condition: 'NORMAL', speedPercent: 100,
@@ -61,7 +61,7 @@ const DEF = {
   },
   turn: {
     grade: 'COATED_CARBIDE', operation: 'MEDIUM', diameter: 50, ap: null, feed: null, noseRadius: 0.8, enteringAngle: 95, rakeDeg: 6,
-    lengthOfCut: 100, condition: 'NORMAL', speedPercent: 100, targetRa: 1.6, raNose: 0.8,
+    lengthOfCut: 100, condition: 'NORMAL', speedPercent: 100, cuttingSpeed: null, targetRa: 1.6, raNose: 0.8,
   },
 };
 const IN = {};
@@ -429,6 +429,7 @@ const CALCS = {
         num('mill', 'ae', 'Radial width ae', 'LENGTH', { auto: 'aeAuto', min: 0.001 }),
         toggle('mill', 'climb', 'Climb milling', i.climb ? 'Down-milling (recommended on CNC)' : 'Conventional (up-milling)'),
         sel('S', 'level', 'Chip-load level', OPT.chipLoadLevels, { cls: 'full' }),
+        num('mill', 'cuttingSpeed', 'Cutting speed', 'CUTTING_SPEED', { auto: 'vcAuto', min: 1, cls: 'span2' }),
         slider('mill', 'speedPercent', 'Speed override'),
         slider('mill', 'feedPercent', 'Chip-load override'),
       ) + note(esc(t('Clear a field to return to the recommended value. Machine: {0}', t(S.mill.name))));
@@ -512,6 +513,7 @@ const CALCS = {
         reamer ? num('drill', 'preHoleDiameter', 'Pre-drilled Ø', 'LENGTH', { auto: 'preHoleAuto', min: 0 })
           : num('drill', 'preHoleDiameter', 'Pre-drilled / core Ø (0 = solid)', 'LENGTH', { min: 0, cls: 'span2' }),
         reamer ? num('drill', 'flutes', 'Flutes', 'NONE', { int: true, min: 2, extra: 0 }) : '',
+        num('drill', 'cuttingSpeed', 'Cutting speed', 'CUTTING_SPEED', { auto: 'vcAuto', min: 1, cls: 'span2' }),
         slider('drill', 'speedPercent', 'Speed override'),
         slider('drill', 'feedPercent', 'Feed override'),
       ) + `<p class="note" id="nearestDrill"></p>`;
@@ -675,6 +677,7 @@ const CALCS = {
         num('turn', 'lengthOfCut', 'Length of cut', 'LENGTH', { min: 0 }),
         num('turn', 'ap', 'Depth of cut ap', 'LENGTH', { auto: 'apAuto', min: 0.01 }),
         num('turn', 'feed', 'Feed f', 'FEED_PER_REV', { auto: 'feedAuto', min: 0.005 }),
+        num('turn', 'cuttingSpeed', 'Cutting speed', 'CUTTING_SPEED', { auto: 'vcAuto', min: 1, cls: 'span2' }),
         slider('turn', 'speedPercent', 'Speed override'),
       ) + note(esc(t('Lathe: {0}. Depth of cut is radial (diameter changes by 2·ap).', t(S.lathe.name))));
       const ra = fields(
@@ -764,6 +767,13 @@ function recompute() {
   document.getElementById('alerts').innerHTML = r.advice.filter((a) => a.level !== 'INFO').map((a) => `<div class="adv ${a.level}">${esc(a.text)}</div>`).join('');
   document.getElementById('results').innerHTML = c.results(r);
   bindChart();
+  // A typed cutting speed replaces the recommendation, so the speed override no longer applies.
+  for (const el of document.querySelectorAll('[data-range$=".speedPercent"]')) {
+    const off = IN[S.tab].cuttingSpeed != null;
+    el.disabled = off;
+    el.closest('.slider').title = off ? t('Speed override applies only while the cutting speed is blank.') : '';
+    el.closest('.slider').style.opacity = off ? '0.45' : '';
+  }
   for (const el of document.querySelectorAll('input[data-auto]')) {
     const [calc, key] = el.dataset.num.split('.');
     const autoKey = el.dataset.auto;

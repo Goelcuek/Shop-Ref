@@ -224,6 +224,7 @@ private fun millingInput(o: dynamic): MillingInput = MillingInput(
     climb = bool(o, "climb", true),
     condition = enumOf(o, "condition", ToolCondition.NORMAL),
     speedPercent = num(o, "speedPercent", 100.0),
+    cuttingSpeed = numOrNull(o, "cuttingSpeed"),
     feedPercent = num(o, "feedPercent", 100.0),
     machine = machine(o, Machine.PRESETS.first()),
     chipLoadLevel = enumOf(o, "chipLoadLevel", ChipLoadLevel.STANDARD),
@@ -238,6 +239,7 @@ fun milling(o: dynamic): dynamic {
     val (apAuto, aeAuto) = MillingCalculator.defaultEngagement(input)
     return obj {
         it.rpm = r.rpm; it.vc = r.vc; it.vcRecommended = r.vcRecommended; it.feed = r.feed; it.fz = r.fz
+        it.vcAuto = r.vcRecommended * input.speedPercent / 100.0
         it.hmax = r.hmax; it.hmaxTarget = r.hmaxTarget; it.chipThinningFactor = r.chipThinningFactor
         it.effectiveDiameter = r.effectiveDiameter; it.engagementAngleDeg = r.engagementAngleDeg
         it.ap = r.ap; it.ae = r.ae; it.apAuto = apAuto; it.aeAuto = aeAuto
@@ -269,12 +271,13 @@ fun drilling(o: dynamic): dynamic {
     val input = DrillingInput(
         material = material(o), drillType = type, coating = enumOf(o, "coating", Coating.TIALN), diameter = d,
         depth = num(o, "depth", 30.0), preHoleDiameter = num(o, "preHoleDiameter", 0.0), flutes = int(o, "flutes", 6),
-        condition = enumOf(o, "condition", ToolCondition.NORMAL), speedPercent = num(o, "speedPercent", 100.0),
+        condition = enumOf(o, "condition", ToolCondition.NORMAL), speedPercent = num(o, "speedPercent", 100.0), cuttingSpeed = numOrNull(o, "cuttingSpeed"),
         feedPercent = num(o, "feedPercent", 100.0), machine = machine(o, Machine.PRESETS.first()), units = units(o), lang = lang(o),
     )
     val r = DrillingCalculator.calculate(input)
     return obj {
         it.rpm = r.rpm; it.vc = r.vc; it.vcRecommended = r.vcRecommended; it.fn = r.fn; it.feed = r.feed
+        it.vcAuto = r.vcRecommended * r.input.speedPercent / 100.0
         it.chipThickness = r.chipThickness; it.kc = r.kc; it.torqueNm = r.torqueNm; it.thrust = r.thrust
         it.powerKw = r.powerKw; it.availablePowerKw = r.availablePowerKw; it.mrr = r.mrr; it.timeMin = r.timeMin
         it.toolLife = lifeJs(r.toolLife); it.holesPerTool = r.holesPerTool; it.toolLifeLength = r.toolLifeLength
@@ -348,13 +351,14 @@ fun turning(o: dynamic): dynamic {
         material = material(o), grade = enumOf(o, "grade", InsertGrade.COATED_CARBIDE), operation = enumOf(o, "operation", TurnOperation.MEDIUM),
         diameter = num(o, "diameter", 50.0), ap = numOrNull(o, "ap"), feed = numOrNull(o, "feed"), noseRadius = num(o, "noseRadius", 0.8),
         enteringAngle = num(o, "enteringAngle", 95.0), rakeDeg = num(o, "rakeDeg", 6.0), lengthOfCut = num(o, "lengthOfCut", 100.0),
-        condition = enumOf(o, "condition", ToolCondition.NORMAL), speedPercent = num(o, "speedPercent", 100.0),
+        condition = enumOf(o, "condition", ToolCondition.NORMAL), speedPercent = num(o, "speedPercent", 100.0), cuttingSpeed = numOrNull(o, "cuttingSpeed"),
         machine = machine(o, Machine.PRESETS.last()), units = units(o), lang = lang(o),
     )
     val r = TurningCalculator.calculate(input)
     return obj {
         it.ap = r.ap; it.feed = r.feed; it.apAuto = TurningCalculator.defaultDepth(input); it.feedAuto = TurningCalculator.defaultFeed(input)
         it.vc = r.vc; it.vcRecommended = r.vcRecommended; it.rpm = r.rpm; it.feedRate = r.feedRate; it.mrr = r.mrr
+        it.vcAuto = r.vcRecommended * r.input.speedPercent / 100.0
         it.chipThickness = r.chipThickness; it.kc = r.kc; it.fc = r.fc; it.ff = r.ff; it.fp = r.fp; it.powerKw = r.powerKw
         it.availablePowerKw = r.availablePowerKw; it.torqueNm = r.torqueNm; it.rt = r.rtMicron; it.ra = r.raMicron
         it.timeMin = r.timeMin; it.advice = adviceJs(r.advice)

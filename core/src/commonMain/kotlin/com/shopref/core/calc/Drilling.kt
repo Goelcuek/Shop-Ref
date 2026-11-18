@@ -48,6 +48,8 @@ data class DrillingInput(
     val flutes: Int = 6,
     val condition: ToolCondition = ToolCondition.NORMAL,
     val speedPercent: Double = 100.0,
+    /** Cutting speed to run [m/min]; null = recommendation × [speedPercent]. */
+    val cuttingSpeed: Double? = null,
     val feedPercent: Double = 100.0,
     val machine: Machine = Machine(),
     val units: UnitSystem = UnitSystem.METRIC,
@@ -153,7 +155,7 @@ object DrillingCalculator {
             else -> (if (coolant) 0.85 else 0.65) to (if (coolant) 0.8 else 0.6)
         }
         val vcRec = baseSpeed * coatingFactor * depthSpeed
-        var rpm = CuttingBasics.rpm(vcRec * input.speedPercent / 100.0, d)
+        var rpm = CuttingBasics.rpm(input.cuttingSpeed ?: (vcRec * input.speedPercent / 100.0), d)
 
         // --- Feed ------------------------------------------------------------------------------
         val substrateFeed = if (type == DrillType.INDEXABLE) 0.2 else type.feedFactor

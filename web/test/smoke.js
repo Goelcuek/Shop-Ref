@@ -124,6 +124,18 @@ const check = (cond, msg) => {
   check(/1\.41×/.test(await p.textContent('#results')), '45° lead gives √2 chip thinning');
   await p.selectOption('[data-sel="mill.toolType"]', 'SQUARE_END');
 
+  // A typed cutting speed replaces the recommendation; clearing it brings the recommendation back.
+  await p.click('[data-tab="turn"]');
+  await p.click('[data-units="IMPERIAL"]');
+  const autoVc = await p.getAttribute('[data-num="turn.cuttingSpeed"]', 'placeholder');
+  await p.fill('[data-num="turn.cuttingSpeed"]', '600');
+  check(await p.$eval('#kpis .kpi:nth-child(3) .v', (e) => e.firstChild.textContent) === '600', `typed 600 SFM is used (auto was ${autoVc})`);
+  check(await p.$eval('[data-range="turn.speedPercent"]', (e) => e.disabled), 'speed override disabled while a speed is typed');
+  await p.fill('[data-num="turn.cuttingSpeed"]', '');
+  check(await p.$eval('[data-range="turn.speedPercent"]', (e) => !e.disabled), 'clearing the speed re-enables the override');
+  await p.click('[data-units="METRIC"]');
+  await p.click('[data-tab="mill"]');
+
   // Material picker.
   await p.click('[data-tab="mill"]');
   await p.click('[data-action="material"]');
